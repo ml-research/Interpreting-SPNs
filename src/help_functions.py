@@ -75,40 +75,43 @@ def convert_spn_to_tf_graph(spn, test_data, batch_size, dtype=None):
     return spn_root, data_placeholder, variable_dict
 
 
-def export_model(export_dir="output/exported_model"):
-    """Saves the current TF default graph to a specified export directory."""
+def export_model(root_dir, export_dir="/output/spns/exported_model"):
+    """Saves the current TF default graph to a specified export directory relative
+    to a given root directory."""
     print('\033[1mStart model export...\033[0m')
     start_time = time.time()
 
+    abs_export_dir = root_dir + export_dir
+
     # Validate that directory does not already exist
-    if os.path.isdir(export_dir):
+    if os.path.isdir(abs_export_dir):
         # In case the target directory exists, enumerate directory name
         i = 0
-        while os.path.isdir("%s_%s" % (export_dir, i)):
+        while os.path.isdir("%s_%s" % (abs_export_dir, i)):
             i += 1
-        export_dir = "%s_%s" % (export_dir, i)
+        abs_export_dir = "%s_%s" % (abs_export_dir, i)
 
     # Create directory
     try:
-        os.mkdir(export_dir)
+        os.mkdir(abs_export_dir)
     except OSError:
-        print("Creation of the directory %s failed." % export_dir)
+        print("Creation of the directory %s failed." % abs_export_dir)
 
     # Take folder name as model name (used for file naming)
-    model_name = os.path.basename(os.path.normpath(export_dir))
+    model_name = os.path.basename(os.path.normpath(abs_export_dir))
 
     # Save the model
     saver = tf.train.Saver()
 
     with tf.Session() as sess:
         tf.global_variables_initializer().run()
-        saver.save(sess, "%s/%s" % (export_dir, model_name))
+        saver.save(sess, "%s/%s" % (abs_export_dir, model_name))
 
     duration = time.time() - start_time
     print('\033[1mFinished model export after %.3f sec.\033[0m' % duration)
 
     # Return the actually used export directory
-    return export_dir
+    return abs_export_dir
 
 
 def import_model(export_dir, input_map=None):
