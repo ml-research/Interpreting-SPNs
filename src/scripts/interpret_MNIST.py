@@ -22,7 +22,7 @@ if __name__ == '__main__':  # needed to circumvent multiprocessing RuntimeError 
 
 
     # Load a saved, trained SPN
-    spn = load_object_from("./output/mnist_spn_5.pckl")
+    spn = load_object_from("/tmp/Projects/Interpreting-SPNs/output/spns/mnist_spn.pckl")
 
     # Convert the trained SPN into a tf.Tensor (test_images needed for shape)
     spn_tensor, data_placeholder, variable_dict = convert_spn_to_tf_graph(

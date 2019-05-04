@@ -51,5 +51,4 @@ if __name__ == '__main__':  # needed to circumvent multiprocessing RuntimeError 
 
     duration = time.time() - start_time
     print('\033[1mFinished training after %.3f sec.\033[0m' % duration)
-
-    save_object_to(spn, "./output/mnist_spn.pckl")
+    save_object_to(spn, "/tmp/Projects/Interpreting-SPNs/output/spns/mnist_spn.pckl")

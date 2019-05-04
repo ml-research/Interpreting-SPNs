@@ -104,19 +104,16 @@ class GenericNeuralNet(object):
             os.makedirs(self.train_dir)
 
         # Initialize session
-        print("Initialize session")
         config = tf.ConfigProto()
         self.sess = tf.Session(config=config)
         K.set_session(self.sess)
 
         # Setup input
-        print("Setup input")
         self.input_placeholder, self.labels_placeholder = self.placeholder_inputs()
         self.num_train_examples = self.data_sets.train.labels.shape[0]
         self.num_test_examples = self.data_sets.test.labels.shape[0]
 
         # Setup inference and training
-        print("Setup inference and training")
         if self.keep_probs is not None:
             self.keep_probs_placeholder = tf.placeholder(tf.float32, shape=(2))
             self.logits = self.inference(self.input_placeholder, self.keep_probs_placeholder)
@@ -125,7 +122,6 @@ class GenericNeuralNet(object):
         else:
             self.logits = self.inference(self.input_placeholder)
 
-        print("Setup loss")
         self.total_loss, self.loss_no_reg, self.indiv_loss_no_reg = self.loss(
             self.logits,
             self.labels_placeholder)
@@ -134,8 +130,6 @@ class GenericNeuralNet(object):
         # self.learning_rate = tf.Variable(self.initial_learning_rate, name='learning_rate', trainable=False)
         # self.learning_rate_placeholder = tf.placeholder(tf.float32)
         # self.update_learning_rate_op = tf.assign(self.learning_rate, self.learning_rate_placeholder)
-
-        print("Trainable variables:", tf.trainable_variables())
 
         # self.train_op = self.get_train_op(self.total_loss, self.global_step, self.learning_rate)
         # self.train_sgd_op = self.get_train_sgd_op(self.total_loss, self.global_step, self.learning_rate)
@@ -148,41 +142,20 @@ class GenericNeuralNet(object):
         # self.saver = tf.train.Saver()
 
         # Setup gradients and Hessians
-        print("Setup gradients and Hessians")
         self.params = self.get_all_params()
-        # print("self.params:", self.params)
-        print("grad_total_loss_op...")
         self.grad_total_loss_op = tf.gradients(self.total_loss, self.params)
-        # print("self.grad_total_loss_op:", self.grad_total_loss_op)
-        print("grad_loss_no_reg_op...")
         self.grad_loss_no_reg_op = tf.gradients(self.loss_no_reg, self.params)
         self.v_placeholder = [tf.placeholder(tf.float32, shape=a.get_shape()) for a in self.params]
         self.u_placeholder = [tf.placeholder(tf.float32, shape=a.get_shape()) for a in self.params]
-        # print("self.v_placeholder:", self.v_placeholder)
-        # print("self.u_placeholder:", self.u_placeholder)
-
-        '''
-        with tf.Session() as sess:
-            tf.global_variables_initializer().run()
-            writer = tf.summary.FileWriter("../output", sess.graph)
-            print(sess.run(self.total_loss,
-                           feed_dict={self.input_placeholder: [self.data_sets.train.x[0]], self.labels_placeholder: [1]}))
-            writer.close()'''
-
-        # TODO: Resolve LookupError
         self.hessian_vector = hessian_vector_product(self.total_loss, self.params, self.v_placeholder)
-
-        print("grad_loss_wrt_input_op...")
         self.grad_loss_wrt_input_op = tf.gradients(self.total_loss, self.input_placeholder)
 
         # Because tf.gradients auto accumulates, we probably don't need the add_n (or even reduce_sum)
-        print("influence_op...")
         self.influence_op = tf.add_n(
             [tf.reduce_sum(tf.multiply(a, array_ops.stop_gradient(b))) for a, b in
              zip(self.grad_total_loss_op, self.v_placeholder)])
 
-        print("grad_influence_wrt_input_op...")
-        # TODO: Runs out of memory
+        # TODO?: Runs out of memory
         self.grad_influence_wrt_input_op = tf.gradients(self.influence_op, self.input_placeholder)
 
         # self.checkpoint_file = os.path.join(self.train_dir, "%s-checkpoint" % self.model_name)
@@ -190,7 +163,6 @@ class GenericNeuralNet(object):
         self.all_train_feed_dict = self.fill_feed_dict_with_all_ex(self.data_sets.train)
         self.all_test_feed_dict = self.fill_feed_dict_with_all_ex(self.data_sets.test)
 
-        print("Initialize global variables")
         init = tf.global_variables_initializer()
         self.sess.run(init)
 

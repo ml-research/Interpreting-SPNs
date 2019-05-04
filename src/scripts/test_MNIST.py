@@ -19,7 +19,7 @@ if __name__ == '__main__':  # needed to circumvent multiprocessing RuntimeError 
     num_classes = 10
 
     # The SPN to test
-    spn = load_object_from("output/mnist_spn_5.pckl")
+    spn = load_object_from("/tmp/Projects/Interpreting-SPNs/output/spns/mnist_spn.pckl")
 
     # Print SPN node statistics
     print(get_structure_stats(spn))
