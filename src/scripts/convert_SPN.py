@@ -9,14 +9,18 @@ if __name__ == '__main__':  # needed to circumvent multiprocessing RuntimeError 
     # Get train and test set
     num_train_samples = 10000
     num_test_samples = 10000
-    (train_images, train_labels), (test_images, test_labels) = load_mnist(num_train_samples, num_test_samples, normalization=False)
+    (train_images, train_labels), (test_images, test_labels) = load_mnist(num_train_samples, num_test_samples,
+                                                                          normalization=False)
     test_data = np.column_stack((test_images, test_labels))
     batch_size = 1
 
-    # Load a saved, trained SPN
-    spn = load_object_from("./output/mnist_spn_1.pckl")
+    output_path = "/home/ml-mrothermel/projects/Interpreting-SPNs/output/spns"
+    file_name = "mnist_spn_9"
 
-    plot_spn(spn, "plot")
+    # Load a saved, trained SPN
+    spn = load_object_from(output_path + "/" + file_name + ".pckl")
+
+    # plot_spn(spn, "plot")
 
     # Convert the trained SPN into a tf.Tensor (test_images needed for shape)
     spn_tensor, data_placeholder, variable_dict = convert_spn_to_tf_graph(
@@ -39,6 +43,5 @@ if __name__ == '__main__':  # needed to circumvent multiprocessing RuntimeError 
 
     # Export the converted and optimized model
     root = tf.identity(spn_tensor, name="Root")
-    export_dir = "output/tf_mnist_spn_5"
-    export_dir = export_model(export_dir=export_dir)
+    export_dir = export_model(root_dir=output_path, export_dir="/tf_" + file_name)
     print("Successfully exported SPN tensor to \"%s\"." % export_dir)

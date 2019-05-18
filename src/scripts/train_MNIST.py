@@ -13,7 +13,7 @@ if __name__ == '__main__':  # needed to circumvent multiprocessing RuntimeError 
     # ---- Data Preprocessing ----
 
     # Get train and test set
-    num_train_samples = 2000
+    num_train_samples = 1000
     num_test_samples = 1000
     (train_images, train_labels), (test_images, test_labels) = load_mnist(num_train_samples, num_test_samples, normalization=False)
     train_data = np.column_stack((train_images, train_labels))
@@ -32,8 +32,8 @@ if __name__ == '__main__':  # needed to circumvent multiprocessing RuntimeError 
 
     # Training parameters
     parametric_types = [Gaussian] * 784 + [Categorical]
-    min_instances_slice = 200  # smaller value leads to deeper SPN
-    threshold = 0.4  # alpha: the smaller alpha the more product nodes are added
+    min_instances_slice = 250  # smaller value leads to deeper SPN
+    threshold = 0.5  # alpha: the smaller alpha the more product nodes are added
 
     context = Context(parametric_types=parametric_types).add_domains(train_data)
 
@@ -51,4 +51,8 @@ if __name__ == '__main__':  # needed to circumvent multiprocessing RuntimeError 
 
     duration = time.time() - start_time
     print('\033[1mFinished training after %.3f sec.\033[0m' % duration)
-    save_object_to(spn, "/tmp/Projects/Interpreting-SPNs/output/spns/mnist_spn.pckl")
+
+    # Save model
+    output_path = "/home/ml-mrothermel/projects/Interpreting-SPNs/output/spns"
+    file_name = "mnist_spn_9.pckl"
+    save_object_to(spn, output_path + "/" + file_name)

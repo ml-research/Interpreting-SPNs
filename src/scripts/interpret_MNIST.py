@@ -10,69 +10,70 @@ if __name__ == '__main__':  # needed to circumvent multiprocessing RuntimeError 
     from prettytable import PrettyTable
 
     # Get train and test set
-    num_train_samples = 10000
+    num_train_samples = 5000
     num_test_samples = 10000
     (train_images, train_labels), (test_images, test_labels) = load_mnist(num_train_samples, num_test_samples,
                                                                           normalization=False)
-    train_data = np.column_stack((train_images, train_labels))
-    test_data = np.column_stack((test_images, test_labels))
+
     label_idx = 784
     num_classes = 10
+    batch_size = 1
 
+    output_path = "/home/ml-mrothermel/projects/Interpreting-SPNs/output/spns"
+    file_name = "tf_mnist_spn_9"
 
+    # Import a trained, saved and converted model with new placeholders
+    sample_placeholder = tf.placeholder(dtype=np.float32,
+                                        shape=(batch_size, test_images.shape[1]),
+                                        name="Sample_Placeholder")
+    label_placeholder = tf.placeholder(dtype=np.float32,
+                                       shape=(batch_size, 1),
+                                       name="Label_Placeholder")
+    input_placeholder = tf.concat([sample_placeholder, label_placeholder], 1)
+    input_map = {"Placeholder:0": input_placeholder}
+    restored_spn_graph = import_model(output_path + "/" + file_name, input_map)
+    new_root = restored_spn_graph.get_tensor_by_name("Root:0")
 
-    # Load a saved, trained SPN
-    spn = load_object_from("/tmp/Projects/Interpreting-SPNs/output/spns/mnist_spn.pckl")
+    # Test it
+    with tf.Session() as sess:
+        init = tf.global_variables_initializer()
+        sess.run(init)
 
-    # Convert the trained SPN into a tf.Tensor (test_images needed for shape)
-    spn_tensor, data_placeholder, variable_dict = convert_spn_to_tf_graph(
-        spn,
-        test_data,
-        batch_size=1,
-        dtype=np.float32
-    )
+        print('\033[1mStart bottom-up evaluation...\033[0m')
+        start_time = time.time()
 
-    root = tf.identity(spn_tensor, name="Root")
+        print(sess.run(new_root, feed_dict={"Sample_Placeholder:0": [train_images[0]],
+                                            "Label_Placeholder:0": [[train_labels[0]]]}))
 
-
-
-    # Load a saved, trained and converted SPN
-    # export_dir = "output/tf_mnist_spn_1"
-    # spn_graph = import_model(export_dir)
-    # root = spn_graph.get_tensor_by_name("Root:0")
-    # data_placeholder = spn_graph.get_tensor_by_name("Placeholder:0")
-
-    # with tf.Session() as sess:
-    #     print(sess.run(root, feed_dict={"Placeholder": np.append(train_data[0], 5)}))
+        duration = time.time() - start_time
+        print('\033[1mFinished bottom-up evaluation after %.3f sec.\033[0m' % duration)
 
     # ---- Influence Inspection ----
 
     # Convert datasets into Influence DataSet objects
-    train_set = DataSet(train_images, train_labels)
-    test_set = DataSet(test_images, test_labels)
+    train_set = DataSet(train_images, np.expand_dims(train_labels, 1))
+    test_set = DataSet(test_images, np.expand_dims(test_labels, 1))
 
     validation_set = None
 
     # Collect SPN attributes
     data_sets = base.Datasets(train=train_set, test=test_set, validation=validation_set)
     model_name = "SPN"
-    input_dim = 3
-    batch_size = 1
 
     # Initialize interpretable MNIST SPN
     print('\033[1mStart InterpretableSpn class initialization...\033[0m')
     start_time = time.time()
 
-    spn = InterpretableSpn(root_node=root,
-                           input_placeholder=data_placeholder,
+    spn = InterpretableSpn(root_node=new_root,
+                           input_placeholder=sample_placeholder,
+                           label_placeholder=label_placeholder,
                            data_sets=data_sets,
-                           input_dim=input_dim,
                            num_classes=num_classes,
                            label_idx=label_idx,
                            batch_size=batch_size,
                            num_epochs=15,
                            model_name=model_name,
-                           train_dir='output')
+                           train_dir=output_path + '/training')
 
     duration = time.time() - start_time
     print('\033[1mFinished initialization after %.3f sec.\033[0m' % duration)
@@ -80,7 +81,12 @@ if __name__ == '__main__':  # needed to circumvent multiprocessing RuntimeError 
     influence = spn.get_influence_on_test_loss(test_indices=[0],
                                                train_idx=[0],
                                                ignore_hessian=True)
-    print("Influence on test loss:", influence)
+    print("Influence of train sample 0 on test loss of test sample 0 (without Hessian):", influence)
+
+    influence = spn.get_influence_on_test_loss(test_indices=[0],
+                                               train_idx=[0],
+                                               ignore_hessian=False)
+    print("Influence of train sample 0 on test loss of test sample 0 (with Hessian):", influence)
 
     train_idx = 0
     print("Influence of train sample %s (with label %s) on test images (without Hessian):" % (
@@ -93,7 +99,7 @@ if __name__ == '__main__':  # needed to circumvent multiprocessing RuntimeError 
         influences.add_row([i, test_labels[i], influence])
     print(influences)
 
-    train_idx = 22
+    train_idx = 23
     print("Influence of train sample %s (with label %s) on test images (without Hessian):" % (
         train_idx, train_labels[train_idx]))
     influences = PrettyTable(['Index', 'Label value', 'Influence'])

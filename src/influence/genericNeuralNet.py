@@ -79,7 +79,6 @@ class GenericNeuralNet(object):
         self.batch_size = kwargs.pop('batch_size')
         self.data_sets = kwargs.pop('data_sets')
         self.train_dir = kwargs.pop('train_dir', 'output')
-        log_dir = kwargs.pop('log_dir', 'log')
         self.model_name = kwargs.pop('model_name')
         self.num_classes = kwargs.pop('num_classes')
         self.initial_learning_rate = kwargs.pop('initial_learning_rate')
@@ -104,7 +103,7 @@ class GenericNeuralNet(object):
             os.makedirs(self.train_dir)
 
         # Initialize session
-        config = tf.ConfigProto()
+        config = tf.ConfigProto(log_device_placement=True)  # Added parameter
         self.sess = tf.Session(config=config)
         K.set_session(self.sess)
 
@@ -142,24 +141,29 @@ class GenericNeuralNet(object):
         # self.saver = tf.train.Saver()
 
         # Setup gradients and Hessians
+        print("Setup gradients and Hessians")
         self.params = self.get_all_params()
+        print("Setup grad_total_loss_op")
         self.grad_total_loss_op = tf.gradients(self.total_loss, self.params)
         self.grad_loss_no_reg_op = tf.gradients(self.loss_no_reg, self.params)
         self.v_placeholder = [tf.placeholder(tf.float32, shape=a.get_shape()) for a in self.params]
         self.u_placeholder = [tf.placeholder(tf.float32, shape=a.get_shape()) for a in self.params]
+        print("Setup hessian_vector")
         self.hessian_vector = hessian_vector_product(self.total_loss, self.params, self.v_placeholder)
         self.grad_loss_wrt_input_op = tf.gradients(self.total_loss, self.input_placeholder)
 
         # Because tf.gradients auto accumulates, we probably don't need the add_n (or even reduce_sum)
+        print("Setup influence_op")
         self.influence_op = tf.add_n(
             [tf.reduce_sum(tf.multiply(a, array_ops.stop_gradient(b))) for a, b in
              zip(self.grad_total_loss_op, self.v_placeholder)])
 
-        # TODO?: Runs out of memory
+        print("Setup grad_influence_wrt_input_op")
         self.grad_influence_wrt_input_op = tf.gradients(self.influence_op, self.input_placeholder)
 
         # self.checkpoint_file = os.path.join(self.train_dir, "%s-checkpoint" % self.model_name)
 
+        print("Setup all_train_feed_dict")
         self.all_train_feed_dict = self.fill_feed_dict_with_all_ex(self.data_sets.train)
         self.all_test_feed_dict = self.fill_feed_dict_with_all_ex(self.data_sets.test)
 

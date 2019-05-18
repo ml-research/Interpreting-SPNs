@@ -17,11 +17,10 @@ class InterpretableSpn(GenericNeuralNet):
     Sum-product-network (SPN) for multi-class classification, interpretable with influence functions.
     """
 
-    def __init__(self, root_node, input_placeholder, label_placeholder, input_dim, label_idx, num_epochs, **kwargs):
+    def __init__(self, root_node, input_placeholder, label_placeholder, label_idx, num_epochs, **kwargs):
         self.root_node = root_node
         self.input_placeholder = input_placeholder
         self.label_placeholder = label_placeholder
-        self.input_dim = input_dim
         self.label_idx = label_idx
 
         self.inference_needs_labels = True
@@ -42,15 +41,10 @@ class InterpretableSpn(GenericNeuralNet):
         """Generates TensorFlow placeholders for input and labels."""
         sample_ph = self.input_placeholder
         label_ph = self.label_placeholder
-        '''label_ph = tf.placeholder(
-            tf.int32,
-            shape=[self.batch_size],
-            name='label_placeholder')'''
         return sample_ph, label_ph
 
     def inference(self, sample_ph, label_ph):
         """Gets an input placeholder and returns the root tensor of the SPN."""
-        # root_tensor = tf.reshape(self.root_node, [self.batch_size, self.num_classes])
         root_tensor = tf.reshape(self.root_node, [self.batch_size, -1])
 
         return root_tensor

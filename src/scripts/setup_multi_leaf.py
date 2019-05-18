@@ -16,7 +16,6 @@ if __name__ == '__main__':  # needed to circumvent multiprocessing RuntimeError 
     # Collect SPN attributes
     data_sets = base.Datasets(train=train_set, test=test_set, validation=validation_set)
     model_name = "Multi-leaf SPN"
-    input_dim = 2
     batch_size = 1
 
     # Construct multi-leaf SPN
@@ -34,10 +33,10 @@ if __name__ == '__main__':  # needed to circumvent multiprocessing RuntimeError 
     root = tf.identity(single_leaf_spn_tensor, name="Root")
 
     # Export the model
-    # root_dir = "/tmp/Projects/Interpreting-SPNs"
-    root_dir = "C:/Users/markr/Google Drive/[00] UNI/[00] Informatik/BA/Interpreting SPNs"
-    export_dir = "/output/spns/converted_multi_leaf_spn"
-    import_dir = export_model(root_dir=root_dir, export_dir=export_dir)
+    output_path = "/home/ml-mrothermel/projects/Interpreting-SPNs/output"
+    # output_path = "C:/Users/markr/Google Drive/[00] UNI/[00] Informatik/BA/Interpreting SPNs/output"
+    spn_export_path = "/spns/converted_multi_leaf_spn"
+    import_path = export_model(root_dir=output_path, export_dir=spn_export_path)
 
     tf.reset_default_graph()
 
@@ -50,25 +49,26 @@ if __name__ == '__main__':  # needed to circumvent multiprocessing RuntimeError 
                                        name="Label_Placeholder")
     input_placeholder = tf.concat([sample_placeholder, label_placeholder], 1)
     input_map = {"Placeholder:0": input_placeholder}
-    restored_spn_graph = import_model(import_dir, input_map)
+    restored_spn_graph = import_model(import_path, input_map)
     new_root = restored_spn_graph.get_tensor_by_name("Root:0")
 
     # Create a graph log to visualize the TF graph with TensorBoard
-    plot_tf_graph(new_root, {sample_placeholder: [test_samples[1]],
-                             label_placeholder: [test_labels[1]]})
+    plot_tf_graph(new_root,
+                  {sample_placeholder: [test_samples[1]],
+                   label_placeholder: [test_labels[1]]},
+                  log_dir=output_path + "/logs")
 
     # Initialize single-leaf SPN
     interpretable_spn = InterpretableSpn(root_node=new_root,
                                          input_placeholder=sample_placeholder,
                                          label_placeholder=label_placeholder,
                                          data_sets=data_sets,
-                                         input_dim=input_dim,
                                          num_classes=1,
                                          label_idx=0,
                                          batch_size=batch_size,
                                          num_epochs=15,
                                          model_name=model_name,
-                                         train_dir=root_dir+'/output/training',
+                                         train_dir=output_path + '/training',
                                          mini_batch=False)
 
     # Experimental influence computations
