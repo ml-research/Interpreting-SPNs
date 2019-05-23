@@ -3,7 +3,9 @@ import tensorflow as tf
 import pickle  # for saving python objects
 import time  # for timing SPN learning duration
 import os  # for reading and writing files and directories
+import itertools  # for combining
 
+from spn.algorithms.MPE import mpe  # most probable explanation (MPE)
 from spn.gpu.TensorFlow import spn_to_tf_graph  # conversion into TensorFlow representation
 
 
@@ -41,16 +43,145 @@ def load_mnist(num_train_samples=60000, num_test_samples=10000, normalization=Tr
     return (train_images, train_labels), (test_images, test_labels)
 
 
+def load_two_class(num_train_samples=1000, num_test_samples=128*128):
+    """Generates a 2D two-class problem dataset and returns it."""
+    # Generate the dataset
+    # Initialize two 2D fields with num_train_samples and num_test_samples resp.
+    train_samples = np.random.uniform(0.0, 128.0, (num_train_samples, 2))
+    num_test_samples = np.sqrt(num_test_samples)
+    test_samples = list(itertools.product(np.linspace(0.5, 127.5, num_test_samples),
+                                          np.linspace(0.5, 127.5, num_test_samples)))
+
+    # compute train and test labels
+    labels = [[], []]
+
+    for k, samples in enumerate((train_samples, test_samples)):
+        for i in range(0, len(samples)):
+            sample = samples[i]
+            if 16 <= sample[0] <= 112 and 16 <= sample[1] <= 112:
+                if sample[0] < 40 and sample[1] < 40:
+                    if np.sqrt((40 - sample[0])**2 + (40 - sample[1])**2) <= 24:
+                        labels[k] = np.append(labels[k], [1])
+                    else:
+                        labels[k] = np.append(labels[k], [0])
+                elif sample[0] > 88 and sample[1] < 40:
+                    if np.sqrt((88 - sample[0])**2 + (40 - sample[1])**2) <= 24:
+                        labels[k] = np.append(labels[k], [1])
+                    else:
+                        labels[k] = np.append(labels[k], [0])
+                elif sample[0] > 88 and sample[1] > 88:
+                    if np.sqrt((88 - sample[0])**2 + (88 - sample[1])**2) <= 24:
+                        labels[k] = np.append(labels[k], [1])
+                    else:
+                        labels[k] = np.append(labels[k], [0])
+                elif sample[0] < 40 and sample[1] > 88:
+                    if np.sqrt((40 - sample[0])**2 + (88 - sample[1])**2) <= 24:
+                        labels[k] = np.append(labels[k], [1])
+                    else:
+                        labels[k] = np.append(labels[k], [0])
+                else:
+                    labels[k] = np.append(labels[k], [1])
+            else:
+                labels[k] = np.append(labels[k], [0])
+
+    # Convert data type
+    train_samples = np.asarray(train_samples, dtype=np.float32)
+    train_labels = np.asarray(labels[0], dtype=np.float32)
+    test_samples = np.asarray(test_samples, dtype=np.float32)
+    test_labels = np.asarray(labels[1], dtype=np.float32)
+
+    return (train_samples, train_labels), (test_samples, test_labels)
+
+
+def load_three_class(num_train_samples=1000, num_test_samples=128*128):
+    """Generates a 2D three-class problem dataset and returns it."""
+    # Generate the dataset
+    # Initialize two 2D fields with num_train_samples and num_test_samples resp.
+    train_samples = np.random.uniform(0.0, 128.0, (num_train_samples, 2))
+    num_test_samples = np.sqrt(num_test_samples)
+    test_samples = list(itertools.product(np.linspace(0.5, 127.5, num_test_samples),
+                                          np.linspace(0.5, 127.5, num_test_samples)))
+
+    # compute train and test labels
+    labels = [[], []]
+
+    for k, samples in enumerate((train_samples, test_samples)):
+        for i in range(0, len(samples)):
+            sample = samples[i]
+            if sample[1] >= np.cos(sample[0]/128*np.pi)*50 + 78:
+                labels[k] = np.append(labels[k], [0])
+            else:
+                if sample[1] >= (sample[0] - 30)*2:
+                    labels[k] = np.append(labels[k], [1])
+                else:
+                    labels[k] = np.append(labels[k], [2])
+
+    # Convert data type
+    train_samples = np.asarray(train_samples, dtype=np.float32)
+    train_labels = np.asarray(labels[0], dtype=np.float32)
+    test_samples = np.asarray(test_samples, dtype=np.float32)
+    test_labels = np.asarray(labels[1], dtype=np.float32)
+
+    return (train_samples, train_labels), (test_samples, test_labels)
+
+
+def evaluate_spn_performance(spn, train_samples, train_labels, test_samples, test_labels, label_idx):
+    """Evaluates the performance of a given SPN by means of given train and test data.
+    Returns a boolean vector containing an entry for the correctness of each single test prediction.
+
+    :param spn: the Sum-Product-Network
+    :param train_samples: list of training samples (without labels) of shape (X, Y)
+    :param train_labels: list of train labels of shape (X, 1)
+    :param test_samples: list of test samples (without labels) of shape (Z, Y)
+    :param test_labels: list of test labels of shape (Z, 1)
+    :param label_idx: position of the label when fed into the SPN
+    :return: boolean vector of length Z where entry i is True iff test label i was correctly predicted
+    """
+
+    num_train_samples = len(train_samples)
+    num_test_samples = len(test_samples)
+
+    # Predict train labels
+    train_performance_data = np.column_stack((train_samples, [np.nan] * num_train_samples))
+    train_predictions = mpe(spn, train_performance_data)
+    predicted_train_labels = train_predictions[:, label_idx]
+
+    # Accuracy on train set
+    correct_answers = np.reshape(train_labels, -1) == predicted_train_labels
+    acc = np.count_nonzero(correct_answers) / num_train_samples
+
+    print('\033[1mTrain set performance:\033[0m')
+    print("Train sample count:", num_train_samples)
+    print("Train set accuracy:", acc * 100, "%")
+
+    # Predict test labels
+    test_performance_data = np.column_stack((test_samples, [np.nan] * num_test_samples))
+    test_predictions = mpe(spn, test_performance_data)
+    predicted_test_labels = test_predictions[:, label_idx]
+
+    # Accuracy on test set
+    correct_answers = np.reshape(test_labels, -1) == predicted_test_labels
+    acc = np.count_nonzero(correct_answers) / num_test_samples
+
+    print('\033[1mTest set performance:\033[0m')
+    print("Test sample count:", num_test_samples)
+    print("Test set accuracy:", acc * 100, "%")
+
+    return correct_answers
+
+
 def save_object_to(obj, destination_path):
     """Saves a python object to a specified (relative) destination path."""
-    f = open(destination_path, 'wb')
+    abs_dest_path = os.path.abspath(destination_path)
+    f = open(abs_dest_path, 'wb')
     pickle.dump(obj, f)
     f.close()
 
 
 def load_object_from(source_path):
     """Loads a python object from a specified (relative) source path."""
-    f = open(source_path, 'rb')
+    abs_source_path = os.path.abspath(source_path)
+    f = open(abs_source_path, 'rb')
     obj = pickle.load(f)
     f.close()
     return obj
@@ -75,16 +206,16 @@ def convert_spn_to_tf_graph(spn, test_data, batch_size, dtype=None):
     return spn_root, data_placeholder, variable_dict
 
 
-def export_model(root_dir, export_dir="/output/spns/exported_model"):
+def export_model(root_dir, export_dir="/output/spns/exported_model", force_overwrite=False):
     """Saves the current TF default graph to a specified export directory relative
     to a given root directory."""
     print('\033[1mStart model export...\033[0m')
     start_time = time.time()
 
-    abs_export_dir = root_dir + export_dir
+    abs_export_dir = os.path.abspath(root_dir + export_dir)
 
     # Validate that directory does not already exist
-    if os.path.isdir(abs_export_dir):
+    if not force_overwrite and os.path.isdir(abs_export_dir):
         # In case the target directory exists, enumerate directory name
         i = 0
         while os.path.isdir("%s_%s" % (abs_export_dir, i)):
@@ -121,8 +252,8 @@ def import_model(export_dir, input_map=None):
 
     # Take folder name as model name (used for file naming)
     model_name = os.path.basename(os.path.normpath(export_dir))
-    meta_graph_path = "%s/%s.meta" % (export_dir, model_name)
-    model_path = "%s/%s" % (export_dir, model_name)
+    meta_graph_path = os.path.abspath("%s/%s.meta" % (export_dir, model_name))
+    model_path = os.path.abspath("%s/%s" % (export_dir, model_name))
 
     with tf.Session() as sess:
         if input_map:

@@ -15,6 +15,11 @@ if __name__ == '__main__':  # needed to circumvent multiprocessing RuntimeError 
     (train_images, train_labels), (test_images, test_labels) = load_mnist(num_train_samples, num_test_samples,
                                                                           normalization=False)
 
+    train_set = DataSet(train_images, np.expand_dims(train_labels, 1))
+    test_set = DataSet(test_images, np.expand_dims(test_labels, 1))
+    validation_set = None
+    data_sets = base.Datasets(train=train_set, test=test_set, validation=validation_set)
+
     label_idx = 784
     num_classes = 10
     batch_size = 1
@@ -50,17 +55,9 @@ if __name__ == '__main__':  # needed to circumvent multiprocessing RuntimeError 
 
     # ---- Influence Inspection ----
 
-    # Convert datasets into Influence DataSet objects
-    train_set = DataSet(train_images, np.expand_dims(train_labels, 1))
-    test_set = DataSet(test_images, np.expand_dims(test_labels, 1))
-
-    validation_set = None
-
-    # Collect SPN attributes
-    data_sets = base.Datasets(train=train_set, test=test_set, validation=validation_set)
+    # Initialize interpretable MNIST SPN
     model_name = "SPN"
 
-    # Initialize interpretable MNIST SPN
     print('\033[1mStart InterpretableSpn class initialization...\033[0m')
     start_time = time.time()
 

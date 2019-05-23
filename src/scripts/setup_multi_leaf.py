@@ -6,8 +6,9 @@ if __name__ == '__main__':  # needed to circumvent multiprocessing RuntimeError 
     from src.help_functions import *
 
     # Generate dummy data sets (at least 5 instances needed for HVP, why soever...)
-    train_set = DataSet(np.array([[1.0], [1.5], [0.9], [0.77], [0.66], [1.15]], dtype=np.float32),
-                        np.array([[1], [1], [0], [0], [0], [1]], dtype=np.float32))
+    train_samples = np.array([[1.0], [1.5], [0.9], [0.77], [0.66], [1.15]], dtype=np.float32)
+    train_labels = np.array([[1], [1], [0], [0], [0], [1]], dtype=np.float32)
+    train_set = DataSet(train_samples, train_labels)
     test_samples = np.array([[1.9], [0.4]], dtype=np.float32)
     test_labels = np.array([[1], [0]], dtype=np.float32)
     test_set = DataSet(test_samples, test_labels)
@@ -25,16 +26,16 @@ if __name__ == '__main__':  # needed to circumvent multiprocessing RuntimeError 
                               Categorical(p=[0.2, 0.8], scope=1))
 
     # Convert this SPN into a tf.Tensor (test_samples needed for shape)
-    single_leaf_spn_tensor, _, _ = convert_spn_to_tf_graph(multi_leaf_spn,
-                                                           np.concatenate((test_samples, test_labels), axis=1),
-                                                           batch_size,
-                                                           dtype=np.float32)
+    multi_leaf_spn_tensor, _, _ = convert_spn_to_tf_graph(multi_leaf_spn,
+                                                          np.column_stack((test_samples, test_labels)),
+                                                          batch_size,
+                                                          dtype=np.float32)
 
-    root = tf.identity(single_leaf_spn_tensor, name="Root")
+    root = tf.identity(multi_leaf_spn_tensor, name="Root")
 
     # Export the model
-    output_path = "/home/ml-mrothermel/projects/Interpreting-SPNs/output"
-    # output_path = "C:/Users/markr/Google Drive/[00] UNI/[00] Informatik/BA/Interpreting SPNs/output"
+    # output_path = "/home/ml-mrothermel/projects/Interpreting-SPNs/output"
+    output_path = "C:/Users/markr/Google Drive/[00] UNI/[00] Informatik/BA/Interpreting SPNs/output"
     spn_export_path = "/spns/converted_multi_leaf_spn"
     import_path = export_model(root_dir=output_path, export_dir=spn_export_path)
 
@@ -64,7 +65,6 @@ if __name__ == '__main__':  # needed to circumvent multiprocessing RuntimeError 
                                          label_placeholder=label_placeholder,
                                          data_sets=data_sets,
                                          num_classes=1,
-                                         label_idx=0,
                                          batch_size=batch_size,
                                          num_epochs=15,
                                          model_name=model_name,

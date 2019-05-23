@@ -17,11 +17,10 @@ class InterpretableSpn(GenericNeuralNet):
     Sum-product-network (SPN) for multi-class classification, interpretable with influence functions.
     """
 
-    def __init__(self, root_node, input_placeholder, label_placeholder, label_idx, num_epochs, **kwargs):
+    def __init__(self, root_node, input_placeholder, label_placeholder, num_epochs, **kwargs):
         self.root_node = root_node
         self.input_placeholder = input_placeholder
         self.label_placeholder = label_placeholder
-        self.label_idx = label_idx
 
         self.inference_needs_labels = True
         self.num_epochs = num_epochs
@@ -29,13 +28,6 @@ class InterpretableSpn(GenericNeuralNet):
         super().__init__(initial_learning_rate=0.001,  # ? TODO
                          decay_epochs=[1000, 10000],  # ? TODO
                          **kwargs)
-
-        '''assert self.input_dim == np.prod(self.data_sets.train.x[0].shape), \
-            "Input dimension %d does not match with dimension %s of train samples." % \
-            (self.input_dim, np.prod(self.data_sets.train.x[0].shape))
-        assert self.input_dim == np.prod(self.data_sets.test.x[0].shape), \
-            "Input dimension %d does not match with dimension %s of test samples." % \
-            (self.input_dim, np.prod(self.data_sets.test.x[0].shape))'''
 
     def placeholder_inputs(self):
         """Generates TensorFlow placeholders for input and labels."""
@@ -45,7 +37,8 @@ class InterpretableSpn(GenericNeuralNet):
 
     def inference(self, sample_ph, label_ph):
         """Gets an input placeholder and returns the root tensor of the SPN."""
-        root_tensor = tf.reshape(self.root_node, [self.batch_size, -1])
+        root_tensor = tf.negative(tf.reshape(self.root_node, [self.batch_size, -1]))
+        # Added tf.negative for convexity
 
         return root_tensor
 
@@ -111,6 +104,9 @@ class InterpretableSpn(GenericNeuralNet):
 
         test_grad_loss_no_reg_val = self.get_test_grad_loss_no_reg_val(test_indices, loss_type=loss_type)
 
+        # Added 1 line:
+        # test_grad_loss_no_reg_val = [np.reshape([a], 1) for a in test_grad_loss_no_reg_val]
+
         print('Norm of test gradient: %s' % np.linalg.norm(np.concatenate(test_grad_loss_no_reg_val)))
 
         start_time = time.time()
@@ -156,3 +152,21 @@ class InterpretableSpn(GenericNeuralNet):
         print('Multiplying by %s train examples took %s sec' % (num_to_remove, duration))
 
         return predicted_loss_diffs
+
+    def get_grad_loss_wrt_input(self, test_indices):
+        """Gets a list of test sample indices and returns a list
+        of loss gradients of the corresponding test samples."""
+        grads = []
+        op = self.grad_loss_wrt_input_op
+
+        # For each test sample get the loss gradient
+        for i in test_indices:
+            test_sample = self.data_sets.test.x[i]
+            test_label = self.data_sets.test.labels[i]
+            feed_dict = {"Sample_Placeholder:0": [test_sample],
+                         "Label_Placeholder:0": [test_label]}
+            gradient = self.sess.run(op, feed_dict=feed_dict)
+            grads = np.append(grads, gradient)
+
+        d = self.grad_loss_wrt_input_op[0].shape[1].value
+        return np.reshape(grads, (-1, d))

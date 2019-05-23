@@ -46,13 +46,12 @@ if __name__ == '__main__':  # needed to circumvent multiprocessing RuntimeError 
                            spn_learn_wrapper=learn_parametric,
                            label_idx=label_idx,
                            min_instances_slice=min_instances_slice,
-                           threshold=threshold,
-                           cpus=12)
+                           threshold=threshold)
 
     duration = time.time() - start_time
     print('\033[1mFinished training after %.3f sec.\033[0m' % duration)
 
     # Save model
     output_path = "/home/ml-mrothermel/projects/Interpreting-SPNs/output/spns"
-    file_name = "mnist_spn_9.pckl"
+    file_name = "mnist_spn_99.pckl"
     save_object_to(spn, output_path + "/" + file_name)
