@@ -6,25 +6,30 @@ if __name__ == '__main__':  # needed to circumvent multiprocessing RuntimeError 
     import matplotlib.pyplot as plt
     from mpl_toolkits.axes_grid1 import make_axes_locatable
 
+    from spn.io.Graphics import plot_spn  # plot SPN
     from spn.structure.Base import Context  # for SPN learning
     from spn.algorithms.LearningWrappers import learn_parametric, learn_classifier  # for SPN learning
     from spn.structure.leaves.parametric.Parametric import Categorical  # leaf node type
     from spn.structure.leaves.parametric.Parametric import Gaussian  # leaf node type
     from spn.algorithms.Statistics import get_structure_stats  # SPN statistics output
+    from spn.algorithms.Marginalization import marginalize  # SPN marginalization
     from src.InterpretableSpn import InterpretableSpn
     from src.influence.dataset import DataSet  # for train and test set creation
     from src.help_functions import *
-    from prettytable import PrettyTable
+    from spn.algorithms.Inference import likelihood  # log-likelihood inference
+    from spn.gpu.TensorFlow import optimize_tf  # optimize SPN parameters
 
     # ---- Model Setup ----
     spn_name = "two_class_spn"
     output_path = "C:/Users/markr/Google Drive/[00] UNI/[00] Informatik/BA/Interpreting SPNs/output"
-    plot_path = output_path + "/plots/two-class/8"
+    plot_path = output_path + "/plots/two-class-linear/4"
 
     # Get train and test set
     num_train_samples = 200
-    num_test_samples = 64*64
-    (train_samples, train_labels), (test_samples, test_labels) = load_two_class(num_train_samples, num_test_samples)
+    num_test_samples_sqrt = 64
+    num_test_samples = num_test_samples_sqrt ** 2
+    (train_samples, train_labels), (test_samples, test_labels) = load_linear_two_class_noise(num_train_samples,
+                                                                                             num_test_samples)
     train_labels = np.expand_dims(train_labels, 1)
     test_labels = np.expand_dims(test_labels, 1)
 
@@ -105,15 +110,23 @@ if __name__ == '__main__':  # needed to circumvent multiprocessing RuntimeError 
                            min_instances_slice=min_instances_slice,
                            threshold=threshold)
 
+    spn = optimize_tf(spn, train_data)
+
     duration = time.time() - start_time
     print('\033[1mFinished training after %.3f sec.\033[0m' % duration)
 
     # Model performance evaluation
-    print(get_structure_stats(spn))
-    test_predictions = evaluate_spn_performance(spn, train_samples, train_labels, test_samples, test_labels, label_idx)
+    spn_stats = get_structure_stats(spn)
+    print(spn_stats)
+    stats_file = open(plot_path + "/spn_stats.txt", "w+")
+    stats_file.write(spn_stats)
+    plot_spn(spn, plot_path + "/spn_struct.pdf")
+    correct_test_preds, pred_test_labels = evaluate_spn_performance(spn, train_samples, train_labels, test_samples,
+                                                                    test_labels, label_idx, stats_file)
+    stats_file.close()
 
-    correct_preds = np.array([test_samples[k] for k in range(0, len(test_samples)) if test_predictions[k] != 0])
-    wrong_preds = np.array([test_samples[k] for k in range(0, len(test_samples)) if test_predictions[k] == 0])
+    correct_preds = np.array([test_samples[k] for k in range(0, len(test_samples)) if correct_test_preds[k] != 0])
+    wrong_preds = np.array([test_samples[k] for k in range(0, len(test_samples)) if correct_test_preds[k] == 0])
 
     # Plot predictions
     plt.subplots(figsize=(5, 5))
@@ -129,6 +142,11 @@ if __name__ == '__main__':  # needed to circumvent multiprocessing RuntimeError 
     plt.title('Test Data Prediction')
     plt.savefig(plot_path + "/test-pred.pdf")
     plt.show()
+
+    # Plot decision boundaries
+    spn = marginalize(spn, [0, 1])
+    likelihoods = likelihood(spn, test_data).reshape((num_test_samples_sqrt, num_test_samples_sqrt)) * 100000
+    plot_decision_boundaries(likelihoods, pred_test_labels, num_test_samples_sqrt, plot_path)
 
     # Convert the model
     spn_tensor, data_placeholder, variable_dict = convert_spn_to_tf_graph(
@@ -198,7 +216,8 @@ if __name__ == '__main__':  # needed to circumvent multiprocessing RuntimeError 
     print('\033[1mFinished initialization after %.3f sec.\033[0m' % duration)
 
     # ---- Influence Inspection ----
-    t = np.random.randint(0, len(test_samples)) # Index of test sample which is used for inference computation
+    t = 2512  # Index of test sample which is used for inference computation
+    # t = np.random.randint(0, len(test_samples))  # Index of test sample which is used for inference computation
     single_test_sample = test_samples[t]  # The test sample under inference investigation
     n = len(train_samples)  # Number of train samples to be investigated (not more than 1900)
 
@@ -217,105 +236,56 @@ if __name__ == '__main__':  # needed to circumvent multiprocessing RuntimeError 
                                                 train_idx=range(0, n),
                                                 ignore_hessian=True)
 
-    influences_c0 = np.array([influences[k] for k in range(0, n) if train_labels[k] == 0])
-    influences_c1 = np.array([influences[k] for k in range(0, n) if train_labels[k] == 1])
+    plot_influences(influences=influences,
+                    samples=train_samples,
+                    plot_title='Influence of Each Training Sample \n on a Single Test Sample w/o Hessian',
+                    plot_path=plot_path,
+                    plot_file_name="influence-no-hessian.pdf",
+                    test_sample=single_test_sample)
 
-    fig, ax = plt.subplots(figsize=(7, 5))
-    sc1 = ax.scatter(c0_x, c0_y, c=influences_c0, cmap="winter")
-    sc2 = ax.scatter(c1_x, c1_y, c=influences_c1, cmap="autumn")
-    ax.scatter(single_test_sample[0], single_test_sample[1], c='darkgray', s=200)
-    plt.xlabel('x')
-    plt.ylabel('y')
-    axes = plt.gca()
-    axes.set_xlim([0, 128])
-    axes.set_ylim([0, 128])
-    plt.axis('equal')
-    plt.title('Influence of Each Training Sample \n on a Single Test Sample w/o Hessian')
-    fig.colorbar(sc1, ax=ax)
-    fig.colorbar(sc2, ax=ax)
-    plt.savefig(plot_path + "/influence-no-hessian.pdf")
-    plt.show()
-
-    # 2. Influences on test sample no. 26 w/ Hessian
+    # 2. Influences on test sample no. t w/ Hessian
     influences = spn.get_influence_on_test_loss(test_indices=[t],
                                                 train_idx=range(0, n),
-                                                ignore_hessian=False)
+                                                ignore_hessian=False,
+                                                approx_type='lissa',
+                                                approx_params={"batch_size": batch_size,
+                                                               "scale": 10,
+                                                               "damping": 0.01,
+                                                               "num_samples": 1,
+                                                               "recursion_depth": 10000})
 
-    influences_c0 = np.array([influences[k] for k in range(0, n) if train_labels[k] == 0])
-    influences_c1 = np.array([influences[k] for k in range(0, n) if train_labels[k] == 1])
-
-    fig, ax = plt.subplots(figsize=(7, 5))
-    sc1 = ax.scatter(c0_x, c0_y, c=influences_c0, cmap="winter")
-    sc2 = ax.scatter(c1_x, c1_y, c=influences_c1, cmap="autumn")
-    ax.scatter(single_test_sample[0], single_test_sample[1], c='darkgray', s=200)
-    plt.xlabel('x')
-    plt.ylabel('y')
-    axes = plt.gca()
-    axes.set_xlim([0, 128])
-    axes.set_ylim([0, 128])
-    plt.axis('equal')
-    plt.title('Influence of Each Training Sample \n on a Single Test Sample w/ Hessian')
-    fig.colorbar(sc1, ax=ax)
-    fig.colorbar(sc2, ax=ax)
-    plt.savefig(plot_path + "/influence-hessian.pdf")
-    plt.show()
+    plot_influences(influences=influences,
+                    samples=train_samples,
+                    plot_title='Influence of Each Training Sample \n on a Single Test Sample w/ Hessian',
+                    plot_path=plot_path,
+                    plot_file_name="influence-hessian.pdf",
+                    test_sample=single_test_sample)
 
     # 3. Influence Gradients regarding test sample no. t w/ Hessian
     influence_grad = spn.get_grad_of_influence_wrt_input(test_indices=[t], train_indices=range(0, n))
     influence_norms = [np.linalg.norm(s) for s in influence_grad]
 
-    influences_c0 = np.array([influence_norms[k] for k in range(0, n) if train_labels[k] == 0])
-    influences_c1 = np.array([influence_norms[k] for k in range(0, n) if train_labels[k] == 1])
-
-    # Scatter plot of gradient norms
-    fig, ax = plt.subplots(figsize=(7, 5))
-    sc1 = ax.scatter(c0_x, c0_y, c=influences_c0, cmap="winter")
-    sc2 = ax.scatter(c1_x, c1_y, c=influences_c1, cmap="autumn")
-    ax.scatter(single_test_sample[0], single_test_sample[1], c='darkgray', s=200)
-    plt.xlabel('x')
-    plt.ylabel('y')
-    axes = plt.gca()
-    axes.set_xlim([0, 128])
-    axes.set_ylim([0, 128])
-    plt.axis('equal')
-    plt.title('Influence Gradient Norms of Each Training Sample \n on a Single Test Sample w/ Hessian')
-    fig.colorbar(sc1, ax=ax)
-    fig.colorbar(sc2, ax=ax)
-    plt.savefig(plot_path + "/influence-grad-norms-hessian.pdf")
-    plt.show()
+    plot_influences(influences=influence_norms,
+                    samples=train_samples,
+                    plot_title='Influence Gradient Norms of Each Training Sample \n on a Single Test Sample w/ Hessian',
+                    plot_path=plot_path,
+                    plot_file_name="influence-grad-norms-hessian.pdf",
+                    test_sample=single_test_sample)
 
     # Vector field of gradients
-    inf_grad_x = influence_grad[:, 0]
-    inf_grad_y = influence_grad[:, 1]
-    train_samples_x = train_samples[:, 0]
-    train_samples_y = train_samples[:, 1]
-
-    fig, ax = plt.subplots(figsize=(5, 5))
-    plt.quiver(train_samples_x, train_samples_y, inf_grad_x, inf_grad_y)
-    ax.scatter(single_test_sample[0], single_test_sample[1], c='black', s=60)
-    plt.xlabel('x')
-    plt.ylabel('y')
-    axes = plt.gca()
-    axes.set_xlim([0, 128])
-    axes.set_ylim([0, 128])
-    plt.axis('equal')
-    plt.title('Influence Gradients of Each Training Sample \n Regarding a Single Test Sample w/ Hessian')
-    plt.savefig(plot_path + "/influence-grads-hessian.pdf")
-    plt.show()
+    plot_gradients(gradients=influence_grad,
+                   samples=train_samples,
+                   test_sample=single_test_sample,
+                   plot_title='Influence Gradient of Training Samples \n Regarding a Single Test Sample w/ Hessian',
+                   plot_path=plot_path,
+                   plot_file_name="influence-grads-hessian.pdf")
 
     # 4. Loss gradients (no influence)
     grads = spn.get_grad_loss_wrt_input(range(0, len(test_samples)))
-    test_samples_x = test_samples[:, 0]
-    test_samples_y = test_samples[:, 1]
 
-    fig, ax = plt.subplots(figsize=(5, 5))
-    plt.quiver(test_samples_x, test_samples_y, grads[:, 0], grads[:, 1])
-    plt.xlabel('x')
-    plt.ylabel('y')
-    axes = plt.gca()
-    axes.set_xlim([0, 128])
-    axes.set_ylim([0, 128])
-    plt.axis('equal')
-    plt.title('Loss Gradients of Each Test Sample \n Regarding its Coordinates')
-    plt.savefig(plot_path + "/loss-grads.pdf")
-    plt.show()
+    plot_gradients(gradients=grads,
+                   samples=test_samples,
+                   test_sample=single_test_sample,
+                   plot_title='Loss Gradient of Test Samples \n Regarding its Coordinates',
+                   plot_path=plot_path,
+                   plot_file_name="loss-grads.pdf")

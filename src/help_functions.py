@@ -4,7 +4,10 @@ import pickle  # for saving python objects
 import time  # for timing SPN learning duration
 import os  # for reading and writing files and directories
 import itertools  # for combining
+import matplotlib
+import matplotlib.pyplot as plt
 
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 from spn.algorithms.MPE import mpe  # most probable explanation (MPE)
 from spn.gpu.TensorFlow import spn_to_tf_graph  # conversion into TensorFlow representation
 
@@ -43,10 +46,75 @@ def load_mnist(num_train_samples=60000, num_test_samples=10000, normalization=Tr
     return (train_images, train_labels), (test_images, test_labels)
 
 
-def load_two_class(num_train_samples=1000, num_test_samples=128*128):
+def load_linear_two_class(num_train_samples=1000, num_test_samples=128 * 128):
+    """Generates a linear 2D two-class problem dataset and returns it."""
+    # Generate the dataset
+    # Initialize two 2D point sets with num_train_samples and num_test_samples resp.
+    train_samples = np.random.uniform(0.0, 128.0, (num_train_samples, 2))
+    num_test_samples = np.sqrt(num_test_samples)
+    test_samples = list(itertools.product(np.linspace(0.5, 127.5, num_test_samples),
+                                          np.linspace(0.5, 127.5, num_test_samples)))
+
+    # compute train and test labels
+    labels = [[], []]
+
+    for k, samples in enumerate((train_samples, test_samples)):
+        for i in range(0, len(samples)):
+            sample = samples[i]
+            if sample[0] < 64:
+                labels[k] = np.append(labels[k], [0])
+            else:
+                labels[k] = np.append(labels[k], [1])
+
+    # Convert data type
+    train_samples = np.asarray(train_samples, dtype=np.float32)
+    train_labels = np.asarray(labels[0], dtype=np.float32)
+    test_samples = np.asarray(test_samples, dtype=np.float32)
+    test_labels = np.asarray(labels[1], dtype=np.float32)
+
+    return (train_samples, train_labels), (test_samples, test_labels)
+
+
+def load_linear_two_class_noise(num_train_samples=1000, num_test_samples=128 * 128):
+    """Generates a linear 2D two-class problem dataset and returns it."""
+    # Generate the dataset
+    # Initialize two 2D point sets with num_train_samples and num_test_samples resp.
+    train_samples = np.random.uniform(0.0, 128.0, (num_train_samples, 2))
+    num_test_samples = np.sqrt(num_test_samples)
+    test_samples = list(itertools.product(np.linspace(0.5, 127.5, num_test_samples),
+                                          np.linspace(0.5, 127.5, num_test_samples)))
+
+    # compute train and test labels
+    labels = [[], []]
+
+    for k, samples in enumerate((train_samples, test_samples)):
+        for i in range(0, len(samples)):
+            sample = samples[i]
+            x = 8 * np.random.poisson()
+            if sample[0] < 64:
+                if sample[0] + x > 70 and k == 0:
+                    labels[k] = np.append(labels[k], [1])
+                else:
+                    labels[k] = np.append(labels[k], [0])
+            else:
+                if sample[0] - x < 58 and k == 0:
+                    labels[k] = np.append(labels[k], [0])
+                else:
+                    labels[k] = np.append(labels[k], [1])
+
+    # Convert data type
+    train_samples = np.asarray(train_samples, dtype=np.float32)
+    train_labels = np.asarray(labels[0], dtype=np.float32)
+    test_samples = np.asarray(test_samples, dtype=np.float32)
+    test_labels = np.asarray(labels[1], dtype=np.float32)
+
+    return (train_samples, train_labels), (test_samples, test_labels)
+
+
+def load_two_class(num_train_samples=1000, num_test_samples=128 * 128):
     """Generates a 2D two-class problem dataset and returns it."""
     # Generate the dataset
-    # Initialize two 2D fields with num_train_samples and num_test_samples resp.
+    # Initialize two 2D point sets with num_train_samples and num_test_samples resp.
     train_samples = np.random.uniform(0.0, 128.0, (num_train_samples, 2))
     num_test_samples = np.sqrt(num_test_samples)
     test_samples = list(itertools.product(np.linspace(0.5, 127.5, num_test_samples),
@@ -60,22 +128,22 @@ def load_two_class(num_train_samples=1000, num_test_samples=128*128):
             sample = samples[i]
             if 16 <= sample[0] <= 112 and 16 <= sample[1] <= 112:
                 if sample[0] < 40 and sample[1] < 40:
-                    if np.sqrt((40 - sample[0])**2 + (40 - sample[1])**2) <= 24:
+                    if np.sqrt((40 - sample[0]) ** 2 + (40 - sample[1]) ** 2) <= 24:
                         labels[k] = np.append(labels[k], [1])
                     else:
                         labels[k] = np.append(labels[k], [0])
                 elif sample[0] > 88 and sample[1] < 40:
-                    if np.sqrt((88 - sample[0])**2 + (40 - sample[1])**2) <= 24:
+                    if np.sqrt((88 - sample[0]) ** 2 + (40 - sample[1]) ** 2) <= 24:
                         labels[k] = np.append(labels[k], [1])
                     else:
                         labels[k] = np.append(labels[k], [0])
                 elif sample[0] > 88 and sample[1] > 88:
-                    if np.sqrt((88 - sample[0])**2 + (88 - sample[1])**2) <= 24:
+                    if np.sqrt((88 - sample[0]) ** 2 + (88 - sample[1]) ** 2) <= 24:
                         labels[k] = np.append(labels[k], [1])
                     else:
                         labels[k] = np.append(labels[k], [0])
                 elif sample[0] < 40 and sample[1] > 88:
-                    if np.sqrt((40 - sample[0])**2 + (88 - sample[1])**2) <= 24:
+                    if np.sqrt((40 - sample[0]) ** 2 + (88 - sample[1]) ** 2) <= 24:
                         labels[k] = np.append(labels[k], [1])
                     else:
                         labels[k] = np.append(labels[k], [0])
@@ -93,7 +161,7 @@ def load_two_class(num_train_samples=1000, num_test_samples=128*128):
     return (train_samples, train_labels), (test_samples, test_labels)
 
 
-def load_three_class(num_train_samples=1000, num_test_samples=128*128):
+def load_three_class(num_train_samples=1000, num_test_samples=128 * 128):
     """Generates a 2D three-class problem dataset and returns it."""
     # Generate the dataset
     # Initialize two 2D fields with num_train_samples and num_test_samples resp.
@@ -108,10 +176,10 @@ def load_three_class(num_train_samples=1000, num_test_samples=128*128):
     for k, samples in enumerate((train_samples, test_samples)):
         for i in range(0, len(samples)):
             sample = samples[i]
-            if sample[1] >= np.cos(sample[0]/128*np.pi)*50 + 78:
+            if sample[1] >= np.cos(sample[0] / 128 * np.pi) * 50 + 78:
                 labels[k] = np.append(labels[k], [0])
             else:
-                if sample[1] >= (sample[0] - 30)*2:
+                if sample[1] >= (sample[0] - 30) * 2:
                     labels[k] = np.append(labels[k], [1])
                 else:
                     labels[k] = np.append(labels[k], [2])
@@ -125,7 +193,7 @@ def load_three_class(num_train_samples=1000, num_test_samples=128*128):
     return (train_samples, train_labels), (test_samples, test_labels)
 
 
-def evaluate_spn_performance(spn, train_samples, train_labels, test_samples, test_labels, label_idx):
+def evaluate_spn_performance(spn, train_samples, train_labels, test_samples, test_labels, label_idx, stats_file=None):
     """Evaluates the performance of a given SPN by means of given train and test data.
     Returns a boolean vector containing an entry for the correctness of each single test prediction.
 
@@ -135,7 +203,9 @@ def evaluate_spn_performance(spn, train_samples, train_labels, test_samples, tes
     :param test_samples: list of test samples (without labels) of shape (Z, Y)
     :param test_labels: list of test labels of shape (Z, 1)
     :param label_idx: position of the label when fed into the SPN
+    :param stats_file: optional output file to save evaluation results
     :return: boolean vector of length Z where entry i is True iff test label i was correctly predicted
+    :return: vector of predicted test labels
     """
 
     num_train_samples = len(train_samples)
@@ -150,9 +220,13 @@ def evaluate_spn_performance(spn, train_samples, train_labels, test_samples, tes
     correct_answers = np.reshape(train_labels, -1) == predicted_train_labels
     acc = np.count_nonzero(correct_answers) / num_train_samples
 
-    print('\033[1mTrain set performance:\033[0m')
-    print("Train sample count:", num_train_samples)
-    print("Train set accuracy:", acc * 100, "%")
+    train_text = "\n\nTrain set performance:" \
+                 "\nTrain sample count: %d" \
+                 "\nTrain set accuracy: %.2f %%" % \
+                 (num_train_samples, acc * 100)
+    print(train_text, end='')
+    if stats_file is not None:
+        stats_file.write(train_text)
 
     # Predict test labels
     test_performance_data = np.column_stack((test_samples, [np.nan] * num_test_samples))
@@ -163,11 +237,98 @@ def evaluate_spn_performance(spn, train_samples, train_labels, test_samples, tes
     correct_answers = np.reshape(test_labels, -1) == predicted_test_labels
     acc = np.count_nonzero(correct_answers) / num_test_samples
 
-    print('\033[1mTest set performance:\033[0m')
-    print("Test sample count:", num_test_samples)
-    print("Test set accuracy:", acc * 100, "%")
+    test_text = "\n\nTest set performance:" \
+                "\nTest sample count: %d" \
+                "\nTest set accuracy: %.2f %%" % \
+                (num_test_samples, acc * 100)
+    print(test_text)
+    if stats_file is not None:
+        stats_file.write(test_text)
 
-    return correct_answers
+    return correct_answers, predicted_test_labels
+
+
+def plot_decision_boundaries(likelihoods, pred_test_labels, num_test_samples_sqrt, plot_path):
+    classes = list(set(pred_test_labels))
+    if len(classes) > 10:
+        raise Exception("Not more than 10 distinct classes allowed for decision boundary plot.")
+
+    # Test sample coordinates
+    lin = np.linspace(0.5, 127.5, num_test_samples_sqrt)
+    y, x = np.meshgrid(lin, lin)
+
+    # Determine colormap levels
+    l_max = np.max(likelihoods)
+    l_min = np.min(likelihoods)
+    levels = np.linspace(l_min, l_max, 15, endpoint=True)
+
+    # Get default colormap for default colors
+    def_cmap = plt.get_cmap("tab10")
+
+    conts = []
+
+    # Plot the decision boundaries
+    fig, ax = plt.subplots(figsize=(8, 5))
+    for i, c in enumerate(classes):
+        cmap = matplotlib.colors.LinearSegmentedColormap.from_list("", [(1, 1, 1, 0), def_cmap(i)])
+        preds = np.array([1 if pred_test_labels[k] == c else 0 for k in range(0, len(pred_test_labels))]).reshape(
+            (num_test_samples_sqrt, num_test_samples_sqrt))
+        conts.append(plt.contourf(x, y, likelihoods * preds, levels, cmap=cmap))
+        plt.contour(x, y, preds, [0.5], colors="k")
+
+    plt.axis('equal')
+    plt.title('Decision Boundaries \n With Summed Likelihood')
+    divider = make_axes_locatable(ax)
+
+    for i, c in enumerate(classes):
+        cax = divider.append_axes("right", size=0.3, pad=0.1)
+        if i == len(classes) - 1:
+            fig.colorbar(conts[i], cax=cax)
+        else:
+            fig.colorbar(conts[i], cax=cax, ticks=[])
+
+    plt.savefig(plot_path + "/dec-bound.pdf")
+    plt.show()
+
+
+def plot_influences(influences, samples, test_sample, plot_title, plot_path, plot_file_name):
+    range = np.max(np.abs(influences))
+    x = samples.transpose()[0].tolist()
+    y = samples.transpose()[1].tolist()
+    fig, ax = plt.subplots(figsize=(6, 5))
+    sc = ax.scatter(x, y, c=influences, cmap="RdBu", vmin=-range, vmax=range)
+    if test_sample is not None:
+        ax.scatter(test_sample[0], test_sample[1], c='gold', s=200, edgecolors='w', linewidth='3')
+    plt.xlabel('x')
+    plt.ylabel('y')
+    axes = plt.gca()
+    axes.set_xlim([0, 128])
+    axes.set_ylim([0, 128])
+    plt.axis('equal')
+    plt.title(plot_title)
+    fig.colorbar(sc, ax=ax)
+    plt.savefig(plot_path + "/" + plot_file_name)
+    plt.show()
+
+
+def plot_gradients(gradients, samples, test_sample, plot_title, plot_path, plot_file_name):
+    inf_grad_x = gradients[:, 0]
+    inf_grad_y = gradients[:, 1]
+    train_samples_x = samples[:, 0]
+    train_samples_y = samples[:, 1]
+
+    fig, ax = plt.subplots(figsize=(5, 5))
+    plt.quiver(train_samples_x, train_samples_y, inf_grad_x, inf_grad_y)
+    ax.scatter(test_sample[0], test_sample[1], c='black', s=60)
+    plt.xlabel('x')
+    plt.ylabel('y')
+    axes = plt.gca()
+    axes.set_xlim([0, 128])
+    axes.set_ylim([0, 128])
+    plt.axis('equal')
+    plt.title(plot_title)
+    plt.savefig(plot_path + "/" + plot_file_name)
+    plt.show()
 
 
 def save_object_to(obj, destination_path):

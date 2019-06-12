@@ -37,8 +37,8 @@ class InterpretableSpn(GenericNeuralNet):
 
     def inference(self, sample_ph, label_ph):
         """Gets an input placeholder and returns the root tensor of the SPN."""
+        # Loss (defined as the negative likelihood)
         root_tensor = tf.negative(tf.reshape(self.root_node, [self.batch_size, -1]))
-        # Added tf.negative for convexity
 
         return root_tensor
 
