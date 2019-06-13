@@ -149,6 +149,16 @@ class GenericNeuralNet(object):
         self.hessian_vector = hessian_vector_product(self.total_loss, self.params, self.v_placeholder)
         self.grad_loss_wrt_input_op = tf.gradients(self.total_loss, self.input_placeholder)
 
+        with tf.Session() as sess:
+            tf.global_variables_initializer().run()
+            writer = tf.summary.FileWriter("C:/Users/markr/Google Drive/[00] UNI/[00] Informatik/BA/Interpreting SPNs/output/logs", sess.graph)
+            print(sess.run([self.root_node, self.root_node_marg],
+                           feed_dict={self.input_placeholder: [self.data_sets.test.x[1]],
+                                      self.label_placeholder: [self.data_sets.test.labels[1]]}))
+            writer.close()
+
+        print(self.grad_total_loss_op)
+
         # Because tf.gradients auto accumulates, we probably don't need the add_n (or even reduce_sum)
         self.influence_op = tf.add_n(
             [tf.reduce_sum(tf.multiply(a, array_ops.stop_gradient(b))) for a, b in

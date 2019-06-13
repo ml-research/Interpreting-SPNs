@@ -248,7 +248,34 @@ def evaluate_spn_performance(spn, train_samples, train_labels, test_samples, tes
     return correct_answers, predicted_test_labels
 
 
-def plot_decision_boundaries(likelihoods, pred_test_labels, num_test_samples_sqrt, plot_path):
+def plot_samples(samples, labels, plot_pdf, plot_title, size=20, colors=None, plot_labels=None):
+    classes = np.unique(labels)
+
+    fig, _ = plt.subplots(figsize=(5, 5))
+
+    for i, c in enumerate(classes):
+        # Extract samples of class c
+        samples_of_c = np.array([samples[k] for k in range(0, len(samples)) if labels[k] == c])
+        c_x = samples_of_c.transpose()[0].tolist()
+        c_y = samples_of_c.transpose()[1].tolist()
+        if colors is not None and plot_labels is not None:
+            plt.scatter(c_x, c_y, label=plot_labels[i], s=size, c=colors[i])
+        else:
+            plt.scatter(c_x, c_y, label="Class %d" % i, s=size)
+
+    plt.xlabel('x')
+    plt.ylabel('y')
+    axes = plt.gca()
+    axes.set_xlim([0, 128])
+    axes.set_ylim([0, 128])
+    plt.legend()
+    plt.axis('equal')
+    plt.title(plot_title)
+    plot_pdf.savefig(fig)
+    plt.show()
+
+
+def plot_decision_boundaries(likelihoods, pred_test_labels, num_test_samples_sqrt, plot_pdf):
     classes = list(set(pred_test_labels))
     if len(classes) > 10:
         raise Exception("Not more than 10 distinct classes allowed for decision boundary plot.")
@@ -268,7 +295,7 @@ def plot_decision_boundaries(likelihoods, pred_test_labels, num_test_samples_sqr
     conts = []
 
     # Plot the decision boundaries
-    fig, ax = plt.subplots(figsize=(8, 5))
+    fig, ax = plt.subplots(figsize=(7, 5))
     for i, c in enumerate(classes):
         cmap = matplotlib.colors.LinearSegmentedColormap.from_list("", [(1, 1, 1, 0), def_cmap(i)])
         preds = np.array([1 if pred_test_labels[k] == c else 0 for k in range(0, len(pred_test_labels))]).reshape(
@@ -277,7 +304,9 @@ def plot_decision_boundaries(likelihoods, pred_test_labels, num_test_samples_sqr
         plt.contour(x, y, preds, [0.5], colors="k")
 
     plt.axis('equal')
-    plt.title('Decision Boundaries \n With Summed Likelihood')
+    plt.title('Decision Boundaries \n With Marginal Likelihood')
+    plt.xlabel('x')
+    plt.ylabel('y')
     divider = make_axes_locatable(ax)
 
     for i, c in enumerate(classes):
@@ -287,11 +316,11 @@ def plot_decision_boundaries(likelihoods, pred_test_labels, num_test_samples_sqr
         else:
             fig.colorbar(conts[i], cax=cax, ticks=[])
 
-    plt.savefig(plot_path + "/dec-bound.pdf")
+    plot_pdf.savefig(fig)
     plt.show()
 
 
-def plot_influences(influences, samples, test_sample, plot_title, plot_path, plot_file_name):
+def plot_influences(influences, samples, test_sample, plot_title, plot_pdf):
     range = np.max(np.abs(influences))
     x = samples.transpose()[0].tolist()
     y = samples.transpose()[1].tolist()
@@ -307,11 +336,11 @@ def plot_influences(influences, samples, test_sample, plot_title, plot_path, plo
     plt.axis('equal')
     plt.title(plot_title)
     fig.colorbar(sc, ax=ax)
-    plt.savefig(plot_path + "/" + plot_file_name)
+    plot_pdf.savefig(fig)
     plt.show()
 
 
-def plot_gradients(gradients, samples, test_sample, plot_title, plot_path, plot_file_name):
+def plot_gradients(gradients, samples, plot_title, plot_pdf, test_sample=None):
     inf_grad_x = gradients[:, 0]
     inf_grad_y = gradients[:, 1]
     train_samples_x = samples[:, 0]
@@ -319,7 +348,8 @@ def plot_gradients(gradients, samples, test_sample, plot_title, plot_path, plot_
 
     fig, ax = plt.subplots(figsize=(5, 5))
     plt.quiver(train_samples_x, train_samples_y, inf_grad_x, inf_grad_y)
-    ax.scatter(test_sample[0], test_sample[1], c='black', s=60)
+    if test_sample is not None:
+        ax.scatter(test_sample[0], test_sample[1], c='black', s=60)
     plt.xlabel('x')
     plt.ylabel('y')
     axes = plt.gca()
@@ -327,7 +357,7 @@ def plot_gradients(gradients, samples, test_sample, plot_title, plot_path, plot_
     axes.set_ylim([0, 128])
     plt.axis('equal')
     plt.title(plot_title)
-    plt.savefig(plot_path + "/" + plot_file_name)
+    plot_pdf.savefig(fig)
     plt.show()
 
 

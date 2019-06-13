@@ -17,16 +17,18 @@ class InterpretableSpn(GenericNeuralNet):
     Sum-product-network (SPN) for multi-class classification, interpretable with influence functions.
     """
 
-    def __init__(self, root_node, input_placeholder, label_placeholder, num_epochs, **kwargs):
-        self.root_node = root_node
+    def __init__(self, root_node, root_node_marg, input_placeholder, label_placeholder, **kwargs):
+        self.root_node = root_node  # root node of SPN
+        self.root_node_marg = root_node_marg  # root node of marginalized SPN
         self.input_placeholder = input_placeholder
         self.label_placeholder = label_placeholder
 
         self.inference_needs_labels = True
-        self.num_epochs = num_epochs
+        # self.num_epochs = 1
 
         super().__init__(initial_learning_rate=0.001,  # ? TODO
                          decay_epochs=[1000, 10000],  # ? TODO
+                         batch_size=1,
                          **kwargs)
 
     def placeholder_inputs(self):
@@ -38,8 +40,10 @@ class InterpretableSpn(GenericNeuralNet):
     def inference(self, sample_ph, label_ph):
         """Gets an input placeholder and returns the root tensor of the SPN."""
         # Loss (defined as the negative likelihood)
-        root_tensor = tf.negative(tf.reshape(self.root_node, [self.batch_size, -1]))
+        # root_tensor = tf.negative(tf.reshape(self.root_node, [self.batch_size, -1]))
 
+        # TODO: Loss defined as the logit
+        root_tensor = tf.negative(tf.reshape(self.root_node, [self.batch_size, -1]))
         return root_tensor
 
     def predictions(self, logits):
@@ -54,7 +58,7 @@ class InterpretableSpn(GenericNeuralNet):
     def loss(self, logits, labels):
         """Computes for a given list of logits the sum of all losses in total,
         the mean of all the losses and the list of individual losses."""
-        # The logits already incorporate the cross entropy
+        ''''# The logits already incorporate the cross entropy
         cross_entropy = logits
 
         # List of individual losses
@@ -62,6 +66,22 @@ class InterpretableSpn(GenericNeuralNet):
 
         # Mean of the individual losses, i.e. mean of the given cross entropy values
         loss_no_reg = tf.reduce_mean(cross_entropy, name='loss_mean')
+        tf.add_to_collection('losses', loss_no_reg)
+
+        # Total loss, i.e. sum of all individual losses
+        total_loss = tf.add_n(tf.get_collection('losses'), name='total_loss')'''
+
+        # Likelihood and marginalized likelihood
+        likelihood = tf.math.exp(tf.reshape(self.root_node, [self.batch_size, -1]))
+        likelihood_marg = tf.math.exp(tf.reshape(self.root_node_marg, [self.batch_size, -1]))
+
+        # List of individual losses
+        loss = likelihood_marg - 2 * likelihood
+
+        indiv_loss_no_reg = loss
+
+        # Mean of the individual losses, i.e. mean of the given cross entropy values
+        loss_no_reg = tf.reduce_mean(loss, name='loss_mean')
         tf.add_to_collection('losses', loss_no_reg)
 
         # Total loss, i.e. sum of all individual losses
