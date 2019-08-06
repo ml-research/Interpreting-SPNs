@@ -1,5 +1,5 @@
 """
-Created on March 2, 2019
+Created on August 4, 2019
 
 @author: Mark Rothermel
 """
@@ -12,21 +12,16 @@ import numpy as np
 import tensorflow as tf
 
 
-class InterpretableSpn(GenericNeuralNet):
+class InterpretableNn(GenericNeuralNet):
     """
-    Sum-product-network (SPN) for multi-class classification, interpretable with influence functions.
+    Neural network (NN) for multi-class classification, interpretable with influence functions.
     """
 
-    def __init__(self, root_node, root_node_marg, sample_placeholder, label_placeholder,
-                 ignore_weights, ignore_means, ignore_variances, type_of_loss, **kwargs):
-        self.root_node = root_node  # root node of SPN
-        self.root_node_marg = root_node_marg  # root node of marginalized SPN
+    def __init__(self, output_node, sample_placeholder, label_placeholder, loss_op, **kwargs):
+        self.output_node = output_node
         self.sample_placeholder = sample_placeholder
         self.label_placeholder = label_placeholder
-        self.ignore_weights = ignore_weights
-        self.ignore_means = ignore_means
-        self.ignore_variances = ignore_variances
-        self.type_of_loss = type_of_loss
+        self.loss_op = loss_op
 
         super().__init__(batch_size=1,
                          mini_batch=False,
@@ -42,36 +37,18 @@ class InterpretableSpn(GenericNeuralNet):
         """Returns all trainable parameters of the model as a list of tf.Tensors."""
         all_params = tf.trainable_variables()
 
-        # Exclude all "ignored" parameters
-        selected_params = all_params
-        if self.ignore_weights:
-            selected_params = [p for p in selected_params if "weights" not in p.name]
-        if self.ignore_means:
-            selected_params = [p for p in selected_params if "mean" not in p.name]
-        if self.ignore_variances:
-            selected_params = [p for p in selected_params if "stdev" not in p.name]
+        print("all_params:", all_params)
 
-        return selected_params
+        return all_params
 
     def loss(self):
         """Generates the TF computation graph for the loss and returns the loss operator."""
+        prediction = self.output_node
+        true_label = self.label_placeholder
 
-        with tf.name_scope("Loss"):
-            # Joint likelihood and marginal likelihood:
-            joint_log_likelihood = self.root_node  # P(x, y)
-            marginal_log_likelihood = self.root_node_marg  # P(x)
+        loss = tf.subtract(prediction, true_label, name="Total_Loss")
 
-            if self.type_of_loss == "joint_ll":
-                # Loss defined as the negative joint log-likelihood:
-                loss = tf.negative(joint_log_likelihood + 0 * marginal_log_likelihood, name="Total_Loss")
-            elif self.type_of_loss == "conditional_ll":
-                # Loss defined as the negative conditional log-likelihood:
-                loss = tf.subtract(marginal_log_likelihood, joint_log_likelihood, name="Total_Loss")
-            else:
-                raise Exception("Unknown type of loss. Expected 'joint_ll' or 'conditional_ll', but got %s."
-                                % self.type_of_loss)
-
-        return loss
+        return self.loss_op
 
     # Influence function 2 (taken from influence function repository)
     def get_influence_on_test_loss(self, test_indices,
@@ -88,7 +65,8 @@ class InterpretableSpn(GenericNeuralNet):
 
         test_grad_loss_no_reg_val = self.get_test_grad_loss_no_reg_val(test_indices, loss_type=loss_type)
 
-        print('Norm of test gradient: %s' % np.linalg.norm(np.concatenate(test_grad_loss_no_reg_val)))
+        norm = np.linalg.norm(np.concatenate([np.asarray(est).flatten() for est in test_grad_loss_no_reg_val]))
+        print('Norm of test gradient: %s' % norm)
 
         start_time = time.time()
 
@@ -126,6 +104,8 @@ class InterpretableSpn(GenericNeuralNet):
                 train_grad_loss_val = self.sess.run(self.grad_total_loss_op, feed_dict=single_train_feed_dict)
             else:
                 train_grad_loss_val = [np.ones(np.sum([np.prod(np.shape(param)) for param in self.params]))]
+            train_grad_loss_val = [np.asarray(est).flatten() for est in train_grad_loss_val]  # added
+            inverse_hvp = [np.asarray(est).flatten() for est in inverse_hvp]  # added
             predicted_loss_diffs[counter] = np.dot(np.concatenate(inverse_hvp),
                                                    np.concatenate(train_grad_loss_val)) / self.num_train_examples
 
@@ -150,7 +130,8 @@ class InterpretableSpn(GenericNeuralNet):
         # Calculate v_placeholder (gradient of loss at test point)
         test_grad_loss_no_reg_val = self.get_test_grad_loss_no_reg_val(test_indices, loss_type=loss_type)
 
-        if verbose: print('Norm of test gradient: %s' % np.linalg.norm(np.concatenate(test_grad_loss_no_reg_val)))
+        norm = np.linalg.norm(np.concatenate([np.asarray(est).flatten() for est in test_grad_loss_no_reg_val]))
+        if verbose: print('Norm of test gradient: %s' % norm)
 
         start_time = time.time()
 

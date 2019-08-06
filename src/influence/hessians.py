@@ -40,7 +40,7 @@ def hessian_vector_product(ys, xs, v):
         raise ValueError("xs and v must have the same length.")
 
     # First backprop
-    grads = gradients(ys, xs)
+    grads = gradients(ys, xs, name="First_backprop_gradient")
 
     # grads = xs
 
@@ -52,7 +52,7 @@ def hessian_vector_product(ys, xs, v):
     ]
 
     # Second backprop
-    grads_with_none = gradients(elemwise_products, xs)
+    grads_with_none = gradients(elemwise_products, xs, name="Second_backprop_gradient")
     return_grads = [
         grad_elem if grad_elem is not None \
             else tf.zeros_like(x) \

@@ -18,64 +18,62 @@ if __name__ == '__main__':  # needed to circumvent multiprocessing RuntimeError 
     from src.help_functions import *
     from spn.algorithms.Inference import log_likelihood  # log-likelihood computation
 
-    # ==== Influence inspection of a sum-product network (SPN) on MNIST ====
+    # ==== Influence inspection of a sum-product network (SPN) on the toy color data set ====
 
     # ---- Parameters ----
     # Dataset parameters
-    res = 8  # MNIST Image pixel resolution per dimension (default 28)
-    num_train_samples = 10000  # Train sample count (max. 60,000)
-    num_test_samples = 10000  # Test sample count (max. 10,000)
-    seed = 23081996  # Random seed for reproduction of results
+    num_train_samples = 1000  # Train sample count
+    num_test_samples_sqrt = 100  # Root of test sample count
+    seed = 23081996  # Random seed
 
     # Parameters for influence investigation
-    t = 2  # Index of the test sample which is used for inference computation and for validity checks
-    t_label = None  # If a value is given, the test sample is set to this value, set to "None" for original label
+    t = 4  # Index of a test sample (the golden sample) which is used for inference computation and validity checks
+    t_label = None  # If a value is given, the test sample is set to this label, set to "None" for original label
     ignore_weights = False  # When true, weight parameters from sum nodes are ignored for influence computation
     ignore_means = False  # When true, mean parameters from Gaussian nodes are ignored for influence computation
     ignore_variances = False  # When true, stdev parameters from Gaussian nodes are ignored for influence computation
-    type_of_loss = "conditional_ll"  # The used likelihood for the loss. Select "joint_ll" or "conditional_ll"
-    n = 10000  # Number of train samples to be investigated (max. num_train_samples)
+    type_of_loss = "conditional_ll"  # The used likelihood for the loss. Select from: "joint_ll", "conditional_ll"
 
     # Paths and names
-    spn_name = "mnist_spn_22"
-    cached_tf_spn_name = "mnist_spn_22"  # If a string is given, it is used to load a saved TF SPN
-    cached_spn_name = "mnist_spn_22"  # If a string is given, it is used to load a saved Pickle SPN
+    spn_name = "toy_spn_6"
+    cached_tf_spn_name = None  # if a string is given, the string is used as the name of converted SPN to be loaded
+    cached_spn_name = None  # if a string is given, the string is used as the name of an SPN to be loaded
+    plot_name = "%s_%d_%s" % (spn_name, t, type_of_loss)
     # output_path = "C:/Users/markr/Google Drive/[00] UNI/[00] Informatik/BA/Interpreting SPNs/output"
     output_path = "/home/ml-mrothermel/projects/Interpreting-SPNs/output"
-    plot_name = "%s_%d_%s_rescaled" % (spn_name, t, type_of_loss)
-    plot_path = output_path + "/plots/mnist/" + plot_name
+    plot_path = output_path + "/plots/toy/" + plot_name
     force_overwrite = True  # Force the overwrite of old plots at plot location
-    save_spn = True  # If True, SPN is saved with Pickle after training under its SPN name
+    save_spn = True  # if True, SPN is saved with Pickle after training under its SPN name
 
     # SPN learning parameters
-    min_instances_slice = 1500  # Smaller value leads to deeper SPN (default 200)
-    threshold = 0.5  # Smaller value leads to more product nodes (default 200)
+    min_instances_slice = 200  # smaller value leads to deeper SPN
+    threshold = 0.3  # alpha: the smaller alpha the more product nodes are added
 
     # HVP (LiSSA) approximation parameters
     scale = 20
-    damping = 0.85  # Select in interval [0, 1)
-    recursion_depth = 5
+    damping = 0.6  # select in interval [0, 1)
+    recursion_depth = 10
 
     # Miscellaneous
-    log_tf_graph = False  # Save log for TF graph visualisation with TensorBoard
-    test_bottom_up_eval = True  # Perform validity check after conversion to TF graph
-    compute_lls = False  # Compute some exemplary joint log-likelihoods
+    log_tf_graph = False
+    test_bottom_up_eval = True
+    compute_lls = False
     os.environ["CUDA_VISIBLE_DEVICES"] = "2"  # GPUs to be used (-1 for no GPUs)
     os.environ["MKL_NUM_THREADS"] = "1"
     os.environ["NUMEXPR_NUM_THREADS"] = "1"
     os.environ["OMP_NUM_THREADS"] = "1"
-    num_threads = 32  # Number threads used for SPN learning
+    num_threads = 16
 
     # ---- Initialization & Model Setup ----
     create_dir(plot_path, force_overwrite=force_overwrite)
     pdf = matplotlib.backends.backend_pdf.PdfPages(plot_path + "/" + plot_name + ".pdf")
-    np.random.seed(seed=seed)
 
     # Get train and test set
-    (train_samples, train_labels), (test_samples, test_labels) = load_mnist(num_train_samples,
-                                                                            num_test_samples,
-                                                                            res,
-                                                                            normalization=False)
+    np.random.seed(seed=seed)
+    num_test_samples = num_test_samples_sqrt ** 2
+    (train_samples, train_labels), (test_samples, test_labels) = generate_toy_color(num_train_samples,
+                                                                                    num_test_samples)
+
     train_labels = np.expand_dims(train_labels, 1)
     test_labels = np.expand_dims(test_labels, 1)
 
@@ -93,6 +91,7 @@ if __name__ == '__main__':  # needed to circumvent multiprocessing RuntimeError 
         test_data[t][-1] = t_label
 
     batch_size = 1
+    res = 5
     label_idx = res ** 2
 
     if cached_tf_spn_name is None:
@@ -249,14 +248,6 @@ if __name__ == '__main__':  # needed to circumvent multiprocessing RuntimeError 
                        label_placeholder: [test_labels[t]]},
                       log_dir=output_path + "/logs")
 
-    # Plot test sample
-    plot_digit(image=test_samples[t],
-               res=res,
-               plot_title="Regarded Test Sample",
-               plot_xlabel='Label: "%d"' % test_labels[t],
-               plot_pdf=pdf,
-               figsize=2)
-
     # Initialize interpretable SPN
     model_name = "SPN"
 
@@ -279,64 +270,42 @@ if __name__ == '__main__':  # needed to circumvent multiprocessing RuntimeError 
     print('\033[1mFinished initialization after %.3f sec.\033[0m' % duration)
 
     # ---- Influence Inspection ----
+    # Plot test sample
+    plot_toy_color(image=test_samples[t],
+                   plot_title="Regarded Test Sample",
+                   plot_pdf=pdf,
+                   label=test_labels[t])
 
-    if compute_lls:
-        # Collect (marginal) likelihoods of first 16 train images
-        print('\033[1mStart collecting (marginal) likelihoods...\033[0m')
-        start_time = time.time()
-
-        outputs = np.empty((0, 2))
-        for i in range(16):
-            print("Computing likelihoods for train sample %d..." % i)
-            with tf.Session() as sess:
-                init = tf.global_variables_initializer()
-                sess.run(init)
-                output = np.array(sess.run([new_root, new_root_marg],
-                                           feed_dict={"Sample_Placeholder:0": [train_samples[i]],
-                                                      "Label_Placeholder:0": [train_labels[i]]})).flatten()
-                outputs = np.append(outputs, np.array([output]), axis=0)
-
-        duration = time.time() - start_time
-        print('\033[1mFinished collecting (marginal) likelihoods after %.3f sec.\033[0m' % duration)
-
-        # Plot the images with likelihoods
-        plot_digits(images=train_samples[0:16],
-                    res=res,
-                    plot_title="Train Images 0 to 15",
-                    labels=train_labels[0:16],
-                    lls=outputs[:, 0],
-                    marg_lls=outputs[:, 1],
-                    plot_pdf=pdf)
-    else:
-        # Plot the images without likelihoods
-        plot_digits(images=train_samples[0:16],
-                    res=res,
-                    plot_title="Train Images 0 to 15",
-                    labels=train_labels[0:16],
-                    plot_pdf=pdf)
+    # Plot train samples
+    plot_toy_colors(images=train_samples[0:16],
+                    plot_title="Train Samples",
+                    plot_pdf=pdf,
+                    labels=train_labels[0:16])
 
     # 1.a Influence gradients of image pixels without Hessian
+
     # Get IF gradients
     influence_grads = spn.get_grad_of_influence_wrt_input(test_indices=[t],
-                                                          train_indices=range(n),
+                                                          train_indices=range(16),
                                                           ignore_hessian=True,
                                                           output_file=stats_file)
 
     # Plot influence gradient heatmaps
-    plot_heatmaps(intensities=influence_grads[0:16],
+    plot_heatmaps(intensities=influence_grads,
                   xdim=res, ydim=res,
-                  plot_title="Feature Influences for Train Images 0 to 15 (w/o H.)",
+                  plot_title="Feature Influences w/o Hessian",
                   labels=train_labels[0:16],
                   plot_pdf=pdf,
-                  rescale=True)
+                  absolute=True)
 
     # 1.b Influence gradients of image pixels with Hessian
+
     print('\033[1mStart influence gradient computation with Hessian...\033[0m')
     start_time = time.time()
 
     # Get IF gradients
     influence_grads = spn.get_grad_of_influence_wrt_input(test_indices=[t],
-                                                          train_indices=range(n),
+                                                          train_indices=range(16),
                                                           ignore_hessian=False,
                                                           approx_type='lissa',
                                                           approx_params={"batch_size": batch_size,
@@ -350,26 +319,15 @@ if __name__ == '__main__':  # needed to circumvent multiprocessing RuntimeError 
     print('\033[1mFinished influence gradient computation after %.3f sec.\033[0m' % duration)
 
     # Plot influence gradient heatmaps
-    plot_heatmaps(intensities=influence_grads[0:16],
+    plot_heatmaps(intensities=influence_grads,
                   xdim=res, ydim=res,
-                  plot_title="Feature Influences for Train Images 0 to 15 (w/ H.)",
+                  plot_title="Feature Influences w/ Hessian",
                   labels=train_labels[0:16],
                   plot_pdf=pdf,
-                  rescale=True)
+                  absolute=True)
 
-    # Sort in descending order
-    indexlist = np.argsort(np.linalg.norm(influence_grads, axis=1))[::-1]
-    sorted_inf_grads = influence_grads[indexlist]
-
-    # Plot influence gradient heatmaps
-    plot_heatmaps(intensities=sorted_inf_grads[120:145],
-                  xdim=res, ydim=res,
-                  plot_title="Strong Feature Influences (w/ H.)",
-                  labels=train_labels[indexlist][120:145],
-                  plot_pdf=pdf,
-                  rescale=True)
-
-    # 2. Influence values of n train images
+    '''
+    # 2. Influence values of all train images
     print('\033[1mStart influence value computation with Hessian...\033[0m')
     start_time = time.time()
 
@@ -389,8 +347,7 @@ if __name__ == '__main__':  # needed to circumvent multiprocessing RuntimeError 
                 plot_title="Samples with Lowest Influence Values",
                 labels=train_labels[sorted_indices_asc[0:16]],
                 plot_pdf=pdf,
-                if_vals=influences[sorted_indices_asc[0:16]],
-                figsize=5)
+                if_vals=influences[sorted_indices_asc[0:16]])
 
     # Sort in descending order
     sorted_indices_desc = sorted_indices_asc[::-1]
@@ -399,8 +356,7 @@ if __name__ == '__main__':  # needed to circumvent multiprocessing RuntimeError 
                 plot_title="Samples with Highest Influence Values",
                 labels=train_labels[sorted_indices_desc[0:16]],
                 plot_pdf=pdf,
-                if_vals=influences[sorted_indices_desc[0:16]],
-                figsize=5)
+                if_vals=influences[sorted_indices_desc[0:16]])
 
     # Sort closest to zero
     closest_to_zero = np.argsort(np.abs(influences))
@@ -409,8 +365,7 @@ if __name__ == '__main__':  # needed to circumvent multiprocessing RuntimeError 
                 plot_title="Samples with Smallest Absolute Influence Values",
                 labels=train_labels[closest_to_zero[0:16]],
                 plot_pdf=pdf,
-                if_vals=influences[closest_to_zero[0:16]],
-                figsize=5)
+                if_vals=influences[closest_to_zero[0:16]])'''
 
     stats_file.close()
     pdf.close()

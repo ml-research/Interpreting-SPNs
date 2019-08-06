@@ -2,9 +2,7 @@ if __name__ == '__main__':  # needed to circumvent multiprocessing RuntimeError 
     import numpy as np
     import tensorflow as tf
     from tensorflow.contrib.learn.python.learn.datasets import base
-    import matplotlib
     import matplotlib.pyplot as plt
-    from matplotlib.colors import ListedColormap
     from mpl_toolkits.axes_grid1 import make_axes_locatable
 
     from spn.io.Graphics import plot_spn  # plot SPN
@@ -249,7 +247,7 @@ if __name__ == '__main__':  # needed to circumvent multiprocessing RuntimeError 
     plot_influences(influences=influences,
                     samples=train_samples,
                     plot_title='Influence of Each Training Sample \n on a Single Test Sample w/o Hessian',
-                    plot_path=plot_path,
+                    plot_pdf=plot_path,
                     plot_file_name="influence-no-hessian.pdf",
                     test_sample=single_test_sample)
 
@@ -267,7 +265,7 @@ if __name__ == '__main__':  # needed to circumvent multiprocessing RuntimeError 
     plot_influences(influences=influences,
                     samples=train_samples,
                     plot_title='Influence of Each Training Sample \n on a Single Test Sample w/ Hessian',
-                    plot_path=plot_path,
+                    plot_pdf=plot_path,
                     plot_file_name="influence-hessian.pdf",
                     test_sample=single_test_sample)
 
@@ -285,7 +283,7 @@ if __name__ == '__main__':  # needed to circumvent multiprocessing RuntimeError 
     plot_influences(influences=influence_norms,
                     samples=train_samples,
                     plot_title='Influence Gradient Norms of Each Training Sample \n on a Single Test Sample w/ Hessian',
-                    plot_path=plot_path,
+                    plot_pdf=plot_path,
                     plot_file_name="influence-grad-norms-hessian.pdf",
                     test_sample=single_test_sample)
 
