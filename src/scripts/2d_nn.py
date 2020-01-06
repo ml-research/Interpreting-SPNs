@@ -64,7 +64,7 @@ plot_samples(train_samples, train_labels,
 
 # Plot train samples with test sample
 plot_samples(train_samples, train_labels,
-             plot_title='Train Dataset', test_sample=test_samples[t])
+             plot_title='Train Dataset', ref_ex=test_samples[t])
 
 # Plot test samples
 plot_samples(test_samples, test_labels,

@@ -264,7 +264,7 @@ if __name__ == '__main__':  # needed to circumvent multiprocessing RuntimeError 
                            ignore_weights=ignore_weights,
                            ignore_means=ignore_means,
                            ignore_variances=ignore_variances,
-                           type_of_loss=type_of_loss)
+                           loss=type_of_loss)
 
     duration = time.time() - start_time
     print('\033[1mFinished initialization after %.3f sec.\033[0m' % duration)

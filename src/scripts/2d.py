@@ -24,44 +24,44 @@ if __name__ == '__main__':  # needed to circumvent multiprocessing RuntimeError 
 
     # ---- Parameters ----
     # Dataset parameters
-    dataset_loader = generate_linear  # The synthetic classification problem to be generated
-    dataset_name = "linear"
+    dataset_loader = generate_three  # The synthetic classification problem to be generated
+    dataset_name = "three"
     num_train_samples = 200  # Train sample count (max. 60,000)
-    num_test_samples = 1000  # Test sample count (max. 10,000)
+    num_test_samples = 1024  # Test sample count (max. 10,000)
     noisy_dataset = True  # When True, noisy data sets are generated
     seed = 23081996  # Random seed for reproduction of results
 
     # Parameters for influence investigation
-    t = 596  # Index of the test sample which is used for inference computation and for validity checks
+    t = 540  # Index of the test sample which is used for inference computation and for validity checks
     t_features = None  # If a value is given, the features are set to this value, set to "None" for original features
     t_label = None  # If a value is given, the label is set to this value, set to "None" for original label
     ignore_weights = False  # When true, weight parameters from sum nodes are ignored for influence computation
     ignore_means = False  # When true, mean parameters from Gaussian nodes are ignored for influence computation
     ignore_variances = False  # When true, stdev parameters from Gaussian nodes are ignored for influence computation
-    type_of_loss = "conditional_ll"  # The used likelihood for the loss. Select "joint_ll" or "conditional_ll"
+    type_of_loss = "joint_ll"  # The used likelihood for the loss. Select "joint_ll" or "conditional_ll"
     n = num_train_samples  # Number of train samples to be investigated (max. num_train_samples)
 
     # Paths and names
     spn_name = "2d_spn"
-    # output_path = "C:/Users/markr/Google Drive/[00] UNI/[00] Informatik/BA/Interpreting SPNs/output"
-    output_path = "/home/ml-mrothermel/projects/Interpreting-SPNs/output"
-    plot_name = "%s_%d_%s_test" % (spn_name, t, type_of_loss)
+    output_path = "C:/Users/markr/Google Drive/[01] TUDA/[00] Informatik/[01] Abgeschlossene Module/BA/Interpreting SPNs/output"
+    # output_path = "/home/ml-mrothermel/projects/Interpreting-SPNs/output"
+    plot_name = "%d_%s" % (t, type_of_loss)
     plot_path = output_path + "/plots/%s/%s" % (dataset_name, plot_name)
     force_overwrite = True  # Force the overwrite of old plots at plot location
     save_spn = True  # If True, SPN is saved with Pickle after training under its SPN name
 
     # SPN learning parameters
     min_instances_slice = 200  # Smaller value leads to deeper SPN (default 200)
-    threshold = 0.3  # Smaller value leads to more product nodes (default 0.3)
+    threshold = 0.5  # Smaller value leads to more product nodes (default 0.3)
 
     # HVP (LiSSA) approximation parameters
-    scale = 20
-    damping = 0.85  # Select in interval [0, 1)
-    recursion_depth = 5
+    scale = 10
+    damping = 0.01  # Select in interval [0, 1)
+    recursion_depth = 100
 
     # Miscellaneous
-    plot_res = 300  # Resolution of the decision boundary and likelihood plots
-    os.environ["CUDA_VISIBLE_DEVICES"] = "2"  # GPUs to be used (-1 for no GPUs)
+    plot_res = 100  # Resolution of the decision boundary and likelihood plots
+    os.environ["CUDA_VISIBLE_DEVICES"] = "-1"  # GPUs to be used (-1 for no GPUs)
     os.environ["MKL_NUM_THREADS"] = "1"
     os.environ["NUMEXPR_NUM_THREADS"] = "1"
     os.environ["OMP_NUM_THREADS"] = "1"
@@ -102,7 +102,7 @@ if __name__ == '__main__':  # needed to circumvent multiprocessing RuntimeError 
 
     # Plot train samples with test sample
     plot_samples(train_samples, train_labels, plot_pdf=pdf,
-                 plot_title='Train Dataset', test_sample=test_samples[t])
+                 plot_title='Train Dataset', ref_ex=test_samples[t])
 
     # Plot test samples
     plot_samples(test_samples, test_labels, plot_pdf=pdf,
@@ -134,7 +134,7 @@ if __name__ == '__main__':  # needed to circumvent multiprocessing RuntimeError 
     print(spn_stats, end="")
     stats_file = open(plot_path + "/spn_stats.txt", "w+")
     stats_file.write(spn_stats)
-    plot_spn(spn, plot_path + "/spn_struct.pdf")
+    # plot_spn(spn, plot_path + "/spn_struct.pdf")
     (predicted_train_labels, correct_train_preds), (predicted_test_labels, correct_test_preds) = \
         evaluate_spn_performance(spn, train_samples, train_labels, test_samples,
                                  test_labels, label_idx, stats_file)
@@ -297,7 +297,7 @@ if __name__ == '__main__':  # needed to circumvent multiprocessing RuntimeError 
                                          ignore_weights=ignore_weights,
                                          ignore_means=ignore_means,
                                          ignore_variances=ignore_variances,
-                                         type_of_loss=type_of_loss)
+                                         loss=type_of_loss)
 
     duration = time.time() - start_time
     print('\033[1mFinished initialization after %.3f sec.\033[0m' % duration)

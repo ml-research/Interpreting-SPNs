@@ -18,7 +18,7 @@ class InterpretableSpn(GenericNeuralNet):
     """
 
     def __init__(self, root_node, root_node_marg, sample_placeholder, label_placeholder,
-                 ignore_weights, ignore_means, ignore_variances, type_of_loss, **kwargs):
+                 ignore_weights, ignore_means, ignore_variances, loss, **kwargs):
         self.root_node = root_node  # root node of SPN
         self.root_node_marg = root_node_marg  # root node of marginalized SPN
         self.sample_placeholder = sample_placeholder
@@ -26,7 +26,7 @@ class InterpretableSpn(GenericNeuralNet):
         self.ignore_weights = ignore_weights
         self.ignore_means = ignore_means
         self.ignore_variances = ignore_variances
-        self.type_of_loss = type_of_loss
+        self.loss = loss
 
         super().__init__(batch_size=1,
                          mini_batch=False,
@@ -61,15 +61,15 @@ class InterpretableSpn(GenericNeuralNet):
             joint_log_likelihood = self.root_node  # P(x, y)
             marginal_log_likelihood = self.root_node_marg  # P(x)
 
-            if self.type_of_loss == "joint_ll":
+            if self.loss == "joint":
                 # Loss defined as the negative joint log-likelihood:
                 loss = tf.negative(joint_log_likelihood + 0 * marginal_log_likelihood, name="Total_Loss")
-            elif self.type_of_loss == "conditional_ll":
+            elif self.loss == "conditional":
                 # Loss defined as the negative conditional log-likelihood:
                 loss = tf.subtract(marginal_log_likelihood, joint_log_likelihood, name="Total_Loss")
             else:
-                raise Exception("Unknown type of loss. Expected 'joint_ll' or 'conditional_ll', but got %s."
-                                % self.type_of_loss)
+                raise Exception("Unknown loss specification. Expected 'joint' or 'conditional', but got %s."
+                                % self.loss)
 
         return loss
 

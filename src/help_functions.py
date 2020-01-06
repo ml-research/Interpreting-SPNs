@@ -197,7 +197,7 @@ def generate_three(num_train_samples=200, num_test_samples=32 * 32, noise=False)
     # Generate the dataset
     # Initialize two 2D fields with num_train_samples and num_test_samples resp.
     train_samples = np.random.uniform(0.0, 128.0, (num_train_samples, 2))
-    num_test_samples = np.sqrt(num_test_samples)
+    num_test_samples = int(np.sqrt(num_test_samples))
     test_samples = list(itertools.product(np.linspace(0.5, 127.5, num_test_samples),
                                           np.linspace(0.5, 127.5, num_test_samples)))
 
@@ -371,12 +371,12 @@ def evaluate_spn_performance(spn, train_samples, train_labels, test_samples, tes
 
 
 def plot_samples(samples, labels, plot_title, plot_pdf=None, classes=None, size=10, colors=None,
-                 plot_labels=None, test_sample=None):
+                 plot_labels=None, ref_ex=None):
     """Generates a coloured scatter plot."""
     if classes is None:
         classes = np.sort(np.unique(labels))
 
-    fig, ax = plt.subplots(figsize=(5, 5))
+    fig, ax = plt.subplots(figsize=(4, 4))
 
     for i, c in enumerate(classes):
         # Extract samples of class c
@@ -390,8 +390,8 @@ def plot_samples(samples, labels, plot_title, plot_pdf=None, classes=None, size=
         else:
             plt.scatter(c_x, c_y, label="Class %d" % i, s=size)
 
-    if test_sample is not None:
-        plt.scatter(test_sample[0], test_sample[1], c='gold', s=200, edgecolors='w', linewidth='3',
+    if ref_ex is not None:
+        plt.scatter(ref_ex[0], ref_ex[1], c='gold', s=200, edgecolors='w', linewidth='3',
                     label=r'$z_{\mathrm{test}}$')
 
     plt.xlabel('x')
@@ -434,7 +434,7 @@ def plot_likelihoods(spn, classes, plot_pdf, res=100, test_sample=None):
 
     # Plot the likelihoods
     for i, c in enumerate(classes):
-        fig, ax = plt.subplots(figsize=(6, 5))
+        fig, ax = plt.subplots(figsize=(4, 3.5))
         zgrid = griddata(samples, likelihoods[i], (xgrid, ygrid))
         cmap = matplotlib.colors.LinearSegmentedColormap.from_list("", [(1, 1, 1, 0), def_cmap(i)])
         cont = plt.contourf(xgrid, ygrid, zgrid, levels, cmap=cmap)
@@ -442,14 +442,17 @@ def plot_likelihoods(spn, classes, plot_pdf, res=100, test_sample=None):
             ax.scatter(test_sample[0], test_sample[1], c='gold', s=200, edgecolors='w', linewidth='3',
                        label=r'$z_{\mathrm{test}}$')
             plt.legend()
-        plt.title('Learned Probability Distribution\nfor Class %d' % c)
+        # plt.title('Learned Probability Distribution\nfor Class %d' % c)
         plt.xlabel('x')
         plt.ylabel('y')
+        plt.axis('equal')
         ax.set_xlim([0, 128])
         ax.set_ylim([0, 128])
+        ax.get_xaxis().set_ticks([])
+        ax.get_yaxis().set_ticks([])
         divider = make_axes_locatable(ax)
         cax = divider.append_axes("right", size=0.3, pad=0.1)
-        fig.colorbar(cont, cax=cax)
+        fig.colorbar(cont, cax=cax, ticks=[])
         plot_pdf.savefig(fig)
         plt.show()
 
@@ -482,7 +485,7 @@ def plot_decision_boundaries(spn, marg_spn, classes, plot_pdf, res=100, test_sam
     conts = []
 
     # Plot the decision boundary and likelihoods
-    fig, ax = plt.subplots(figsize=(7, 5))
+    fig, ax = plt.subplots(figsize=(5.5, 3.5))
     for i, c in enumerate(classes):
         cmap = matplotlib.colors.LinearSegmentedColormap.from_list("", [(1, 1, 1, 0), def_cmap(i)])
         preds_c = np.array([1 if pred == c else 0 for pred in predictions]).reshape((res, res))
@@ -495,7 +498,9 @@ def plot_decision_boundaries(spn, marg_spn, classes, plot_pdf, res=100, test_sam
         plt.legend()
 
     plt.axis('equal')
-    plt.title('Decision Boundary\nand Marginal Log-Likelihood')
+    # plt.title('Decision Boundary\nand Marginal Log-Likelihood')
+    ax.get_xaxis().set_ticks([])
+    ax.get_yaxis().set_ticks([])
     plt.xlabel('x')
     plt.ylabel('y')
     ax.set_xlim([0, 128])
@@ -505,7 +510,7 @@ def plot_decision_boundaries(spn, marg_spn, classes, plot_pdf, res=100, test_sam
     for i, c in enumerate(classes):
         cax = divider.append_axes("right", size=0.3, pad=0.1)
         if i == len(classes) - 1:
-            fig.colorbar(conts[i], cax=cax)
+            fig.colorbar(conts[i], cax=cax, ticks=[])
         else:
             fig.colorbar(conts[i], cax=cax, ticks=[])
 
