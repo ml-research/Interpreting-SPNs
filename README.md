@@ -1,5 +1,5 @@
 # Interpreting Sum-Product Networks via Influence Functions
-#### An implementation of the bachelor thesis of [Mark Rothermel](https://github.com/MaggiR) (Aug 2019).
+#### [Mark Rothermel](https://github.com/MaggiR), Computer Science Bachelor Thesis, Aug 2019, TU Darmstadt.
 
 > The implementation mainly uses the [SPFlow](https://github.com/SPFlow/SPFlow) library,
 >Tensorflow, and snippets from the repository
@@ -18,3 +18,6 @@ the local learning behavior of the model, which is helpful for understanding the
 
 ## Tutorial
 For a full tutorial, see ![here](tutorial.ipynb).
+
+## Thesis
+For the full-text bachelor thesis see ![here](thesis.pdf).
