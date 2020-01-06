@@ -15,3 +15,6 @@ the local learning behavior of the model, which is helpful for understanding the
 
 ## Some exemplary influence plots
 ![Plot Examples](output/example_plots.png)
+
+## Tutorial
+For a full tutorial, see ![here](tutorial.ipynb).
