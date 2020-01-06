@@ -43,8 +43,7 @@ if __name__ == '__main__':  # needed to circumvent multiprocessing RuntimeError 
 
     # Paths and names
     spn_name = "2d_spn"
-    output_path = "C:/Users/markr/Google Drive/[01] TUDA/[00] Informatik/[01] Abgeschlossene Module/BA/Interpreting SPNs/output"
-    # output_path = "/home/ml-mrothermel/projects/Interpreting-SPNs/output"
+    output_path = "output"
     plot_name = "%d_%s" % (t, type_of_loss)
     plot_path = output_path + "/plots/%s/%s" % (dataset_name, plot_name)
     force_overwrite = True  # Force the overwrite of old plots at plot location

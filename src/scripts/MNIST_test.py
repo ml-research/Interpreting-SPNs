@@ -11,7 +11,7 @@ if __name__ == '__main__':  # needed to circumvent multiprocessing RuntimeError 
 
     # --- Parameters ---
     spn_name = "mnist_spn_2"
-    output_path = "/home/ml-mrothermel/projects/Interpreting-SPNs/output"
+    output_path = "output"
     res = 28
     force_overwrite = True
 

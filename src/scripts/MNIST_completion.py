@@ -13,8 +13,7 @@ if __name__ == '__main__':  # needed to circumvent multiprocessing RuntimeError 
     # --- Parameters ---
     spn_name = "mnist_spn_2"
     plot_name = "%s_completion" % spn_name
-    # output_path = "C:/Users/markr/Google Drive/[00] UNI/[00] Informatik/BA/Interpreting SPNs/output"
-    output_path = "/home/ml-mrothermel/projects/Interpreting-SPNs/output"
+    output_path = "output"
     plot_path = output_path + "/plots/mnist/" + plot_name
     res = 28
     force_overwrite = True

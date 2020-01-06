@@ -12,8 +12,7 @@ if __name__ == '__main__':  # needed to circumvent multiprocessing RuntimeError 
 
     spn_name = "mnist_spn_2"
     plot_name = "%s_mpe" % spn_name
-    # output_path = "C:/Users/markr/Google Drive/[00] UNI/[00] Informatik/BA/Interpreting SPNs/output"
-    output_path = "/home/ml-mrothermel/projects/Interpreting-SPNs/output"
+    output_path = "output"
     plot_path = output_path + "/plots/mnist/" + plot_name
 
     create_dir(plot_path, force_overwrite=True)

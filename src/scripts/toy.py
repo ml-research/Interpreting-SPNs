@@ -39,8 +39,7 @@ if __name__ == '__main__':  # needed to circumvent multiprocessing RuntimeError 
     cached_tf_spn_name = None  # if a string is given, the string is used as the name of converted SPN to be loaded
     cached_spn_name = None  # if a string is given, the string is used as the name of an SPN to be loaded
     plot_name = "%s_%d_%s" % (spn_name, t, type_of_loss)
-    # output_path = "C:/Users/markr/Google Drive/[00] UNI/[00] Informatik/BA/Interpreting SPNs/output"
-    output_path = "/home/ml-mrothermel/projects/Interpreting-SPNs/output"
+    output_path = "output"
     plot_path = output_path + "/plots/toy/" + plot_name
     force_overwrite = True  # Force the overwrite of old plots at plot location
     save_spn = True  # if True, SPN is saved with Pickle after training under its SPN name

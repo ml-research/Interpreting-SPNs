@@ -40,8 +40,7 @@ if __name__ == '__main__':  # needed to circumvent multiprocessing RuntimeError 
     spn_name = "mnist_spn_22"
     cached_tf_spn_name = "mnist_spn_22"  # If a string is given, it is used to load a saved TF SPN
     cached_spn_name = "mnist_spn_22"  # If a string is given, it is used to load a saved Pickle SPN
-    # output_path = "C:/Users/markr/Google Drive/[00] UNI/[00] Informatik/BA/Interpreting SPNs/output"
-    output_path = "/home/ml-mrothermel/projects/Interpreting-SPNs/output"
+    output_path = "output"
     plot_name = "%s_%d_%s_rescaled" % (spn_name, t, type_of_loss)
     plot_path = output_path + "/plots/mnist/" + plot_name
     force_overwrite = True  # Force the overwrite of old plots at plot location

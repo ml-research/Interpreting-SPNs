@@ -15,8 +15,7 @@ n_val = 1000
 
 seed = 112000  # Random seed
 model_name = "nn"
-output_path = "C:/Users/markr/Google Drive/[00] UNI/[00] Informatik/BA/Interpreting SPNs/output"
-# output_path = "/home/ml-mrothermel/projects/Interpreting-SPNs/output"
+output_path = "output"
 
 t = 2
 t_features = None  # [0, 0, 1, 0, 1, 1, 0, 1, 0, 1, 0, 1, 0, 0, 1, 1, 0, 1, 0, 0, 0, 1, 1, 1, 0]
