@@ -14,3 +14,4 @@ example on the model's parameters and, in turn, the model's performance on a ref
 the local learning behavior of the model, which is helpful for understanding the model and the reasons for its predictions.
 
 ## Some exemplary influence plots
+![Plot Examples](output/example_plots.png)
